@@ -46,6 +46,7 @@ wiki/                LLM이 쓰는 지식 (전부 [[위키링크]]로 연결)
 ├── metrics/         지표 정의와 추이 (CSAT, FCR, AHT, 인입량 등)
 ├── projects/        진행 중 과제·개선 프로젝트
 ├── decisions/       의사결정 기록 (무엇을·왜·누가·언제)
+├── domain/          업무 도메인 지식 (연금 제도, 법규, 데이터 규격 등)
 ├── glossary/        내부 용어·은어·코드값
 ├── sources/         원본 1건 = 요약 페이지 1장
 └── notes/           질문에 답하며 만들어진 분석·비교·정리 산출물
@@ -66,6 +67,7 @@ wiki/                LLM이 쓰는 지식 (전부 [[위키링크]]로 연결)
 ---
 title: 환불·보상 기준
 type: policy          # entity | org | process | policy | system | issue | metric | project | decision | term | source | note
+                      # domain/ 페이지는 term 을 쓴다
 tags: [환불, 보상, 응대기준]
 status: active        # active | draft | stale | superseded
 created: 2026-09-11
@@ -122,6 +124,8 @@ CS 자료에는 고객 실명·연락처·주소·주문번호·결제정보가 
    - **기존 내용과 충돌하면 지우지 말고 명시한다:**
      `> ⚠️ 2026-09-11 기준 변경됨: 기존 X → 현재 Y ([[소스]])`
    - 결정이 있었으면 `wiki/decisions/`에 기록
+   - 재사용 가능한 도메인 지식(제도·법규·데이터 규격)이 나오면 `wiki/domain/`에 페이지로 남긴다.
+     **과제가 끝나도 남는 자산이다.** 특정 과제에만 해당하는 내용은 `wiki/projects/` 아래에 둔다
    - 지표 언급이 있으면 `wiki/metrics/` 해당 페이지에 수치 추가
 5. **`index.md` 갱신**, **`log.md`에 한 줄 추가.**
 6. **무엇을 바꿨는지 목록으로 보고한다.** 파일 경로와 변경 요지.
