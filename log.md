@@ -36,3 +36,15 @@
 - 수정: wiki/overview.md 전면 개편, wiki/notes/확인필요-목록.md, index.md, CLAUDE.md
 - 삭제: wiki/projects/평생-보장소득-은퇴설계-플랫폼.md → wiki/projects/평생보장소득.md 로 통합
 - 정정: 텔레그램 페이지의 "슬랙→텔레그램 이전" 추론이 틀렸음. 4개 도구 병행이 사실
+
+## [2026-09-11] lint | 누락 점검 후 보강
+- 점검: 원본 대비 위키 커버리지 확인 (외부 서비스 언급 25종 대조, 빈 카테고리 확인)
+- 생성: wiki/domain/경쟁-서비스 — 시그널 스노우볼·뱅크샐러드 등 9종
+- 생성: wiki/glossary/{연금-용어, 사내-용어} — 빈 카테고리였음
+- 생성: wiki/decisions/{결정-이력, 사실과-계획-분리} — 빈 카테고리였음
+- 생성: wiki/systems/디자인-산출물, wiki/notes/파트-타임라인
+- 수정: wiki/projects/평생보장소득-PRD — 컨셉 5축·온보딩·화면상세·게이미피케이션 추가
+- 수정: wiki/notes/확인필요-목록 — 모순·공백 6건 신규 기록
+- 수정: wiki/overview.md, index.md
+- 발견: 세후/세전 표기 기준 충돌, 위험방어 설계 누락, R1~R5 미상, KPI 부재
+- 미해결: 창립기념품 PDF를 이 환경에서 열 수 없음 (poppler 미설치)
