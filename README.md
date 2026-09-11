@@ -115,3 +115,35 @@ LLM이 고치는 걸 실시간으로 보면서 링크를 따라다닐 수 있다
 여기서는 그걸 CS 파트용으로 못 박아 놨다 — 자세한 규약은 [`CLAUDE.md`](./CLAUDE.md)에 있다.
 
 일하는 방식이 규약과 안 맞으면 `CLAUDE.md`를 고치면 된다. 그게 이 시스템의 설정 파일이다.
+
+---
+
+## 멤버 프로필 사이트
+
+파트원 프로필과 재미 코너(MBTI·나이대·혈액형·별명·대화 가이드)를 GitHub Pages 로 공개하는 정적 사이트.
+위키 본문(`wiki/`, `raw/`)은 빌드 대상이 아니다 — `data/profiles/*.json` 만 화이트리스트로 내보낸다.
+
+**파이프라인**
+
+```
+raw/ 대화 원문  →  scripts/extract_signals.py  →  data/signals.json (집계 신호)
+data/profiles/*.json (사람이 채운 프로필)      →  scripts/build_site.py  →  _site/
+```
+
+**로컬에서 보기**
+
+```
+python3 scripts/build_site.py --out _site && open _site/index.html
+```
+
+**자동 갱신**
+
+`.github/workflows/pages.yml` 이 매일 1회(한국시간 오전 9시) 신호를 재생성하고 사이트를 다시 배포한다.
+`raw/`·`data/`·`scripts/`·`docs/PROFILE_SCHEMA.md` 가 바뀌면 즉시도 배포된다.
+Actions 탭에서 `workflow_dispatch` 로 수동 실행도 가능하다.
+
+> ⚠️ **MBTI·나이대·혈액형은 추측이다.** 특히 혈액형은 데이터 근거가 전혀 없는 "무작위" 항목이다
+> (`docs/PROFILE_SCHEMA.md`). 재미로만 보고, 업무 판단의 근거로 쓰지 않는다.
+
+자세한 스키마와 공개 범위·금지 패턴은 [`docs/PROFILE_SCHEMA.md`](docs/PROFILE_SCHEMA.md),
+[`docs/PRIVACY.md`](docs/PRIVACY.md) 참고.

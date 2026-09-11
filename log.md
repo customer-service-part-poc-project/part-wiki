@@ -48,3 +48,14 @@
 - 수정: wiki/overview.md, index.md
 - 발견: 세후/세전 표기 기준 충돌, 위험방어 설계 누락, R1~R5 미상, KPI 부재
 - 미해결: 창립기념품 PDF를 이 환경에서 열 수 없음 (poppler 미설치)
+
+## [2026-09-11] ingest | 멤버 프로필 사이트 구축 (team)
+- 참조: ../members 프로젝트 규약 이식 (재미/업무 분리, 근거 강도 필수 표기)
+- 생성: docs/PROFILE_SCHEMA.md, docs/PRIVACY.md
+- 생성: scripts/{extract_signals,build_site,test_build_site}.py
+- 생성: data/signals.json, data/profiles/*.json 7명분
+- 생성: .github/workflows/pages.yml — 매일 09:00 KST 자동 갱신
+- 생성: wiki/systems/프로필-사이트.md
+- 수정: wiki/people/*.md 7개에 프로필 링크, overview.md, index.md, CLAUDE.md
+- 수정: extract_signals.py 버그 2건 — 텔레그램 미파싱, 첨부파일명·인용문 오염
+- 확인: 저장소가 public 이며 파트가 인지하고 공개 유지하기로 결정

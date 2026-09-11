@@ -3,3 +3,6 @@
 .idea/
 .claude/
 .DS_Store
+
+# 멤버 프로필 사이트 빌드 산출물 (scripts/build_site.py --out _site)
+_site/
