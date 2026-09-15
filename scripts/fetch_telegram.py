@@ -108,16 +108,62 @@ def render_message(
 
 
 def render_header(chat_title: str, members: int | None, fetched_at: datetime,
-                  first_id: int, last_id: int) -> list[str]:
-    """messages.txt 맨 위 머리말. 화자가 아직 없어 파서가 본문으로 안 센다."""
-    who = f" (텔레그램 그룹, {members}명)" if members else " (텔레그램)"
-    return [
+                  first_id: int, last_id: int, chat_key: str = "",
+                  last_when: datetime | None = None, notice_only: bool = False,
+                  skipped: int = 0) -> list[str]:
+    """messages.txt 맨 위 머리말. 화자가 아직 없어 파서가 본문으로 안 센다.
+
+    `대화방 ID … 메시지 ID 범위 …` 줄은 장식이 아니다.
+    .telegram/state.json 이 사라졌을 때 어디까지 받았는지 되읽는 근거다.
+    형식을 바꾸면 HEADER_RE 도 같이 바꿔야 한다.
+    """
+    who = "" if notice_only else (f" (텔레그램 그룹, {members}명)" if members else " (텔레그램)")
+    tail = f" · 마지막 메시지 {last_when:%Y-%m-%d %H:%M}" if last_when else ""
+    lines = [
         f"{chat_title}{who}",
         f"scripts/fetch_telegram.py 로 수집. 기준 {fetched_at:%Y-%m-%d %H:%M} KST.",
-        f"메시지 ID 범위 {first_id}~{last_id}. 이 범위 앞은 이전 폴더에 있다.",
-        "초대 링크는 공개 저장소라 마스킹했다. 원문에는 링크가 있었다.",
-        "",
+        f"대화방 ID {chat_key} · 메시지 ID 범위 {first_id}~{last_id}{tail}",
+        "이 범위 앞은 이전 폴더에 있다. 초대 링크는 공개 저장소라 마스킹했다.",
     ]
+    if notice_only:
+        lines.append(f"공지 전용 방이다. 입·퇴장 등 멤버 기록 {skipped}건은 저장하지 않았다.")
+    lines.append("")
+    return lines
+
+
+HEADER_RE = re.compile(r"대화방 ID (\S+) · 메시지 ID 범위 (\d+)~(\d+)")
+
+
+def scan_collected_max_id(key: str) -> int:
+    """이미 raw/ 에 받아 둔 메시지 중 가장 큰 ID. 없으면 0."""
+    best = 0
+    if not OUT_ROOT.exists():
+        return best
+    for path in OUT_ROOT.rglob("messages.txt"):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for chat_id, _lo, hi in HEADER_RE.findall(text):
+            if chat_id == key:
+                best = max(best, int(hi))
+    return best
+
+
+def resume_point(key: str, state: dict) -> tuple[int, str]:
+    """어디부터 받을지와 그 근거.
+
+    .telegram/ 은 git 에 올라가지 않는다. 다른 기기나 새 클론에서는 비어 있고,
+    그때 0 부터 받으면 전체 이력이 raw/ 에 통째로 중복된다.
+    그래서 상태 파일이 없으면 이미 받아 둔 머리말에서 마지막 ID 를 되읽는다.
+    """
+    recorded = int(state.get(key, {}).get("last_id", 0))
+    if recorded:
+        return recorded, "상태 파일"
+    scanned = scan_collected_max_id(key)
+    if scanned:
+        return scanned, "기존 수집분 머리말 (상태 파일 없음)"
+    return 0, "처음부터"
 
 
 # ---------------------------------------------------------------- 설정·상태
@@ -182,6 +228,12 @@ def load_settings() -> dict:
         if name and name not in merged:
             merged.append(name)
     conf["chats"] = merged
+
+    notice = list(notice_only_chats(conf))
+    for name in (c.strip() for c in env.get("TELEGRAM_NOTICE_ONLY", "").split(",")):
+        if name and name not in notice:
+            notice.append(name)
+    conf["notice_only"] = notice
     return conf
 
 
@@ -199,13 +251,24 @@ def need_config() -> dict:
     return conf
 
 
+def notice_only_chats(conf: dict) -> list[str]:
+    """공지만 받아 오는 방. 입·퇴장 같은 멤버 기록은 저장하지 않는다.
+
+    파트 위 조직 방은 팀 일정과 상황을 알려고 받는다. 거기 누가 들어오고
+    나갔는지는 우리가 쌓을 데이터가 아니다. 이 저장소는 public 이기도 해서
+    관여한 적 없는 사람 이름을 원본에 남기지 않는다.
+    """
+    names = conf.get("notice_only") or []
+    return [c for c in names if isinstance(c, str) and c.strip()]
+
+
 def registered_chats(conf: dict) -> list[str]:
     """--chat 없이 부를 때 동기화할 방 목록. 텔레방이 여러 개라 필요하다."""
     chats = conf.get("chats") or []
     return [c for c in chats if isinstance(c, str) and c.strip()]
 
 
-def add_chat(name: str) -> None:
+def add_chat(name: str, *, notice_only: bool = False) -> None:
     """설정 파일을 사람이 직접 열지 않고 방을 등록한다.
 
     config.json 에는 api_hash 가 함께 있다. 방 하나 추가하자고 그 파일을
@@ -213,12 +276,20 @@ def add_chat(name: str) -> None:
     """
     conf = load_json(CONF_PATH, {})
     if name in registered_chats(load_settings()):
-        print(f"이미 등록돼 있다: {name}")
+        if notice_only and name not in notice_only_chats(load_settings()):
+            conf["notice_only"] = notice_only_chats(conf) + [name]
+            save_json(CONF_PATH, conf)
+            print(f"공지 전용으로 바꿨다: {name} (멤버 기록 미수집)")
+        else:
+            print(f"이미 등록돼 있다: {name}")
         return
     chats = registered_chats(conf)
     conf["chats"] = chats + [name]
+    if notice_only:
+        conf["notice_only"] = notice_only_chats(conf) + [name]
     save_json(CONF_PATH, conf)
-    print(f"등록했다: {name}  (현재 {len(conf['chats'])}개)")
+    kind = " · 공지 전용(멤버 기록 미수집)" if notice_only else ""
+    print(f"등록했다: {name}{kind}  (현재 {len(conf['chats'])}개)")
 
 
 def slugify(title: str) -> str:
@@ -324,6 +395,30 @@ def do_list(conf: dict, limit: int) -> None:
             print(f"{dialog.id:>15}  {kind:4}  {dialog.name}")
 
 
+def do_status() -> None:
+    """어느 방을 어디까지 받았는지. 상태 파일을 직접 열지 않고 본다."""
+    state = load_json(STATE_PATH, {})
+    chats = registered_chats(load_settings())
+    if not state and not chats:
+        print("등록된 방도 수집 기록도 없다. --list 로 이름을 확인하고 --add-chat 으로 등록한다.")
+        return
+    print(f"{'방':<18}{'마지막 메시지':<20}{'ID':>8}   마지막 수집")
+    seen = set()
+    for key, row in state.items():
+        title = row.get("title") or key
+        seen.add(title)
+        last_msg = (row.get("last_message_at") or "-")[:16].replace("T", " ")
+        fetched = (row.get("fetched_at") or "-")[:16].replace("T", " ")
+        print(f"{title:<18}{last_msg:<20}{row.get('last_id', 0):>8}   {fetched}")
+    for name in chats:
+        if name not in seen:
+            print(f"{name:<18}{'아직 수집 안 함':<20}{0:>8}   -")
+    missing = [t for t in seen if t not in chats]
+    if missing:
+        print(f"\n수집 기록은 있으나 등록 목록에 없다: {', '.join(missing)}")
+        print("동기화 대상에서 빠진다. 넣으려면 --add-chat 으로 등록한다.")
+
+
 def resolve_chat(client, chat: str):
     """제목·@username·숫자 ID 중 무엇이든 받는다."""
     if re.fullmatch(r"-?\d+", chat):
@@ -341,6 +436,7 @@ def resolve_chat(client, chat: str):
 
 def collect(conf: dict, chat: str, *, dry_run: bool, fetch_all: bool,
             limit: int | None, since_id: int | None = None):
+    notice_only = chat in notice_only_chats(conf)
     from telethon import utils
     from telethon.tl.types import MessageService
 
@@ -353,11 +449,21 @@ def collect(conf: dict, chat: str, *, dry_run: bool, fetch_all: bool,
         title = utils.get_display_name(entity)
         key = str(getattr(entity, "id", chat))
         if fetch_all:
-            min_id = 0
+            min_id, why = 0, "--all (전체 이력)"
         elif since_id is not None:
-            min_id = since_id          # 첫 수집에서 기존 내보내기와 겹치지 않게 자를 때
+            min_id, why = since_id, "--since-id"
         else:
-            min_id = int(state.get(key, {}).get("last_id", 0))
+            min_id, why = resume_point(key, state)
+        print(f"[{title}] 시작점 {min_id} — 근거: {why}")
+
+        # 시작점을 못 찾았는데 그냥 0 부터 받으면 전체 이력이 raw/ 에 중복된다.
+        # 실수로 지나가지 않도록 여기서 끊고 사람이 정하게 한다.
+        if min_id == 0 and not fetch_all:
+            raise LookupError(
+                f"[{title}] 어디부터 받을지 모르겠다. 전체를 받으면 이미 있는 대화가 중복된다.\n"
+                f"    처음 받는 방이면   : --chat '{chat}' --all\n"
+                f"    이어받는 방이면   : --chat '{chat}' --since-id <마지막 메시지 ID>\n"
+                f"    (--status 로 기록을, messages.txt 머리말로 마지막 ID 를 확인한다)")
 
         members = getattr(getattr(entity, "participants_count", None), "real", None) \
             or getattr(entity, "participants_count", None)
@@ -367,12 +473,21 @@ def collect(conf: dict, chat: str, *, dry_run: bool, fetch_all: bool,
 
         body: list[str] = []
         last_date = None
+        last_when: datetime | None = None
         first_id = last_id = 0
         count = 0
+        skipped_service = 0
         other_urls: set[str] = set()
 
         for msg in client.iter_messages(entity, min_id=min_id, reverse=True, limit=limit):
             when = msg.date.astimezone(KST)
+
+            if isinstance(msg, MessageService) and notice_only:
+                skipped_service += 1
+                continue            # 입·퇴장 기록은 남기지 않는다
+
+            # 날짜 구분선은 실제로 쓸 메시지가 있을 때만 넣는다.
+            # 먼저 넣으면 전부 걸러진 날에 빈 날짜 줄만 남는다.
             if last_date != when.date():
                 body.append(fmt_date(when))
                 last_date = when.date()
@@ -407,13 +522,16 @@ def collect(conf: dict, chat: str, *, dry_run: bool, fetch_all: bool,
 
             first_id = first_id or msg.id
             last_id = msg.id
+            last_when = when
             count += 1
 
     if not count:
         print(f"[{title}] 새 메시지 없음.")
         return 0
 
-    header = render_header(title, members, datetime.now(KST), first_id, last_id)
+    header = render_header(title, members, datetime.now(KST), first_id, last_id,
+                           chat_key=key, last_when=last_when,
+                           notice_only=notice_only, skipped=skipped_service)
     text = "\n".join(header + body) + "\n"
 
     if dry_run:
@@ -430,8 +548,12 @@ def collect(conf: dict, chat: str, *, dry_run: bool, fetch_all: bool,
         target.write_text(text, encoding="utf-8")
 
     state.setdefault(key, {})
-    state[key].update({"title": title, "last_id": last_id,
-                       "fetched_at": datetime.now(KST).isoformat()})
+    state[key].update({
+        "title": title,
+        "last_id": last_id,
+        "last_message_at": last_when.isoformat() if last_when else None,
+        "fetched_at": datetime.now(KST).isoformat(),
+    })
     save_json(STATE_PATH, state)
 
     print(f"[{title}] {count}건 저장: {target.relative_to(ROOT)}")
@@ -495,8 +617,11 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--login", action="store_true", help="최초 1회 인증 (대화형)")
     ap.add_argument("--list", action="store_true", help="대화방 목록 출력")
+    ap.add_argument("--status", action="store_true", help="방별로 어디까지 받았는지")
     ap.add_argument("--chat", help="대화방 하나만. 생략하면 등록된 방을 전부 동기화한다")
     ap.add_argument("--add-chat", metavar="이름", help="동기화 대상으로 방을 등록한다")
+    ap.add_argument("--notice-only", action="store_true",
+                    help="--add-chat 과 함께. 공지만 받고 멤버 기록은 저장하지 않는다")
     ap.add_argument("--dry-run", action="store_true", help="저장하지 않고 화면에만")
     ap.add_argument("--all", action="store_true", help="증분 무시하고 전체 이력")
     ap.add_argument("--limit", type=int, help="최대 메시지 수")
@@ -510,7 +635,10 @@ def main() -> None:
         do_login()
         return
     if args.add_chat:
-        add_chat(args.add_chat)
+        add_chat(args.add_chat, notice_only=args.notice_only)
+        return
+    if args.status:
+        do_status()
         return
 
     conf = need_config()

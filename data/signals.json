@@ -4,6 +4,7 @@
     "raw/threads/2026-09-10-텔레그램-파트방/messages.txt",
     "raw/threads/2026-09-14-슬랙-proj-평생보장소득-종료전.md",
     "raw/threads/2026-09-15-텔레그램-고객서비스파트/messages.txt",
+    "raw/threads/2026-09-15-텔레그램-우리팀/messages.txt",
     "raw/threads/2026-09-15-텔레그램-파트방/messages.txt"
   ],
   "members": {
@@ -99,11 +100,11 @@
       "confidence": "중간"
     },
     "김동준": {
-      "utterances": 31,
-      "total_chars": 4223,
-      "avg_chars": 136,
-      "chat_chars": 1935,
-      "avg_chat_chars": 62,
+      "utterances": 32,
+      "total_chars": 4461,
+      "avg_chars": 139,
+      "chat_chars": 2174,
+      "avg_chat_chars": 67,
       "active_hours": "07~18",
       "markers": {
         "웃음ㅋ": 9,
@@ -112,12 +113,12 @@
         "느낌표": 5,
         "물음표": 3,
         "말줄임": 4,
-        "존댓말요": 32,
-        "습니다체": 13,
+        "존댓말요": 33,
+        "습니다체": 14,
         "겸양": 1,
         "확인요구": 3,
         "제안형": 4,
-        "단정": 2,
+        "단정": 3,
         "위임분담": 1
       },
       "endings_top": [

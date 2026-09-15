@@ -134,10 +134,13 @@ class 격리된_설정(unittest.TestCase):
         self.orig_conf, self.orig_env = ft.CONF_PATH, ft.ENV_PATH
         ft.CONF_PATH = self.tmp / "config.json"
         ft.ENV_PATH = self.tmp / ".env"
+        self.orig_out = ft.OUT_ROOT
+        ft.OUT_ROOT = self.tmp / "threads"
         self.saved = {k: os.environ.pop(k) for k in self.KEYS if k in os.environ}
 
     def tearDown(self):
         ft.CONF_PATH, ft.ENV_PATH = self.orig_conf, self.orig_env
+        ft.OUT_ROOT = self.orig_out
         for k in self.KEYS:
             os.environ.pop(k, None)
         os.environ.update(self.saved)
@@ -238,6 +241,165 @@ class 설정_읽기(격리된_설정):
         ft.save_json(ft.CONF_PATH, {"api_id": "5", "api_hash": "z"})
         conf = ft.load_settings()
         self.assertEqual((conf["api_id"], conf["api_hash"]), ("5", "z"))
+
+
+class 재개_지점(격리된_설정):
+    """이미 받은 메시지를 다시 받지 않게 하는 부분.
+
+    여기가 틀리면 raw/ 에 같은 대화가 두 번 쌓이고 발화 수가 부풀려진다.
+    """
+
+    def 수집분(self, folder: str, chat_key: str, lo: int, hi: int):
+        d = ft.OUT_ROOT / folder
+        d.mkdir(parents=True, exist_ok=True)
+        lines = ft.render_header("고객서비스파트", 10, at(15, 11, 0), lo, hi,
+                                 chat_key=chat_key, last_when=at(15, 10, 59))
+        (d / "messages.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def test_머리말에서_마지막_ID를_읽는다(self):
+        self.수집분("2026-09-15-a", "5434604569", 2034, 2035)
+        self.assertEqual(ft.scan_collected_max_id("5434604569"), 2035)
+
+    def test_여러_폴더면_가장_큰_값(self):
+        self.수집분("2026-09-15-a", "5434604569", 2034, 2035)
+        self.수집분("2026-09-16-b", "5434604569", 2040, 2099)
+        self.assertEqual(ft.scan_collected_max_id("5434604569"), 2099)
+
+    def test_다른_방의_ID는_섞지_않는다(self):
+        """방이 섞이면 받지도 않은 구간을 받은 걸로 치고 통째로 건너뛴다."""
+        self.수집분("2026-09-15-a", "5434604569", 2034, 2035)
+        self.수집분("2026-09-15-b", "9999999999", 8000, 9000)
+        self.assertEqual(ft.scan_collected_max_id("5434604569"), 2035)
+
+    def test_수집분이_없으면_0(self):
+        self.assertEqual(ft.scan_collected_max_id("5434604569"), 0)
+
+    def test_상태파일이_있으면_그걸_쓴다(self):
+        self.수집분("2026-09-15-a", "5434604569", 2034, 2035)
+        got, why = ft.resume_point("5434604569", {"5434604569": {"last_id": 2100}})
+        self.assertEqual(got, 2100)
+        self.assertIn("상태 파일", why)
+
+    def test_상태파일이_없으면_수집분에서_복구한다(self):
+        """.telegram/ 은 git 에 없다. 새 클론에서 전체를 다시 받으면 안 된다."""
+        self.수집분("2026-09-15-a", "5434604569", 2034, 2035)
+        got, why = ft.resume_point("5434604569", {})
+        self.assertEqual(got, 2035)
+        self.assertIn("머리말", why)
+
+    def test_둘_다_없으면_처음부터(self):
+        got, why = ft.resume_point("5434604569", {})
+        self.assertEqual(got, 0)
+        self.assertIn("처음", why)
+
+    def test_머리말_형식이_바뀌면_바로_드러난다(self):
+        """HEADER_RE 와 render_header 는 짝이다. 한쪽만 바뀌면 복구가 조용히 죽는다."""
+        lines = ft.render_header("방", 3, at(15, 11, 0), 10, 20,
+                                 chat_key="777", last_when=at(15, 10, 59))
+        self.assertTrue(ft.HEADER_RE.search("\n".join(lines)))
+
+
+class 공지_전용_방(격리된_설정):
+    """파트 위 조직 방은 일정·상황만 받는다. 거기 멤버는 우리 데이터가 아니다."""
+
+    def test_빈_설정이면_없음(self):
+        self.assertEqual(ft.notice_only_chats({}), [])
+
+    def test_env에서_읽는다(self):
+        self.write_env("TELEGRAM_CHATS=고객서비스파트,우리팀",
+                       "TELEGRAM_NOTICE_ONLY=우리팀")
+        conf = ft.load_settings()
+        self.assertEqual(ft.notice_only_chats(conf), ["우리팀"])
+        self.assertIn("고객서비스파트", ft.registered_chats(conf))
+
+    def test_공지_전용은_동기화_대상에서_빠지지_않는다(self):
+        """받긴 받아야 한다. 안 받으면 팀 공지를 놓친다."""
+        self.write_env("TELEGRAM_CHATS=우리팀", "TELEGRAM_NOTICE_ONLY=우리팀")
+        self.assertIn("우리팀", ft.registered_chats(ft.load_settings()))
+
+    def test_등록하면서_공지_전용으로_표시한다(self):
+        ft.add_chat("우리팀", notice_only=True)
+        conf = ft.load_json(ft.CONF_PATH, {})
+        self.assertEqual(conf["chats"], ["우리팀"])
+        self.assertEqual(conf["notice_only"], ["우리팀"])
+
+    def test_이미_등록된_방도_공지_전용으로_바꾼다(self):
+        ft.add_chat("우리팀")
+        ft.add_chat("우리팀", notice_only=True)
+        self.assertEqual(ft.load_json(ft.CONF_PATH, {})["notice_only"], ["우리팀"])
+
+    def test_일반_방은_표시되지_않는다(self):
+        ft.add_chat("고객서비스파트")
+        self.assertEqual(ft.notice_only_chats(ft.load_settings()), [])
+
+    def test_머리말이_인원수를_숨기고_생략_건수를_적는다(self):
+        head = "\n".join(ft.render_header("우리팀", 31, at(15, 14, 47), 1820, 2041,
+                                          chat_key="549", last_when=at(15, 13, 59),
+                                          notice_only=True, skipped=30))
+        self.assertNotIn("31명", head)
+        self.assertIn("멤버 기록 30건은 저장하지 않았다", head)
+
+    def test_일반_방_머리말은_인원수를_적는다(self):
+        head = "\n".join(ft.render_header("고객서비스파트", 10, at(15, 14, 47), 2034, 2035,
+                                          chat_key="543", last_when=at(15, 10, 59)))
+        self.assertIn("10명", head)
+        self.assertNotIn("저장하지 않았다", head)
+
+    def test_공지_전용_머리말도_재개_지점을_남긴다(self):
+        """인원수를 감추느라 복구 근거까지 날리면 안 된다."""
+        head = "\n".join(ft.render_header("우리팀", 31, at(15, 14, 47), 1820, 2041,
+                                          chat_key="549", notice_only=True, skipped=30))
+        m = ft.HEADER_RE.search(head)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(3), "2041")
+
+
+class 전체_재수집_방어(격리된_설정):
+    """시작점을 못 찾았을 때 조용히 전체를 받지 않는지.
+
+    실제로 한 번 당했다. 상태 파일이 없고 머리말 형식이 옛것이라
+    시작점이 0 으로 떨어졌는데 아무 말 없이 전체 이력을 다시 받았다.
+    """
+
+    def test_시작점을_못_찾으면_0을_돌려준다(self):
+        got, why = ft.resume_point("없는방", {})
+        self.assertEqual(got, 0)
+        self.assertIn("처음", why)
+
+    def test_옛_머리말은_복구_대상이_아니다(self):
+        """대화방 ID 가 없는 예전 형식은 못 읽는다. 그래서 방어가 필요하다."""
+        d = ft.OUT_ROOT / "2026-09-15-옛형식"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "messages.txt").write_text(
+            "고객서비스파트 (텔레그램 그룹, 10명)\n"
+            "메시지 ID 범위 2034~2035. 이 범위 앞은 이전 폴더에 있다.\n",
+            encoding="utf-8")
+        self.assertEqual(ft.scan_collected_max_id("5434604569"), 0)
+
+    def test_새_머리말은_복구된다(self):
+        d = ft.OUT_ROOT / "2026-09-15-새형식"
+        d.mkdir(parents=True, exist_ok=True)
+        lines = ft.render_header("고객서비스파트", 10, at(15, 11, 0), 2034, 2035,
+                                 chat_key="5434604569", last_when=at(15, 10, 59))
+        (d / "messages.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        self.assertEqual(ft.scan_collected_max_id("5434604569"), 2035)
+
+
+class 수집_대상(unittest.TestCase):
+    """신호 집계 대상은 고객서비스파트 구성원뿐이다."""
+
+    def test_파트원만_집계한다(self):
+        import extract_signals as sig
+        text = "\n".join([
+            "9 September 2026",
+            "07:28", "김동준", "이름 표기 의견 남겨봅니다",
+            "16:28", "이현진", "제 사진을 바꾸려고 했는데ㅋㅋ",
+            "13:59", "강정민 팀장님", "신입 채용이 진행 중입니다",
+        ]) + "\n"
+        utt, _ = sig.parse_telegram(text)
+        self.assertIn("김동준", utt)
+        self.assertNotIn("이현진", utt)
+        self.assertNotIn("강정민 팀장님", utt)
 
 
 class 출력경로(unittest.TestCase):
