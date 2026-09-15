@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""`data/profiles/*.json` 으로 정적 멤버 프로필 사이트를 만든다.
+"""`data/profiles/*.json` 과 `data/projects/*.json` 으로 정적 파트 사이트를 만든다.
 
 표준 라이브러리만 쓴다 (Python 3.9+). 외부 패키지·CDN·네트워크를 쓰지 않으며,
 생성한 HTML 은 CSS 를 인라인으로 품고 있어 file:// 로 열어도 그대로 보인다.
 
     python3 scripts/build_site.py --out _site
-    python3 scripts/build_site.py --out _site --data data/profiles
+    python3 scripts/build_site.py --out _site --data data/profiles --projects data/projects
 
-빌드는 프로필을 한 건씩 검증한다. 어긋난 파일은 **그 파일만 건너뛰고** 이유를 stderr 에 남긴다.
+빌드는 프로필·프로젝트를 한 건씩 검증한다. 어긋난 파일은 **그 파일만 건너뛰고** 이유를 stderr 에 남긴다.
 한 사람의 실수로 다른 사람 페이지까지 막지 않기 위해서다.
-유효한 프로필이 하나도 없을 때만 종료 코드 1 로 실패한다.
+유효한 프로필이 하나도 없을 때만 종료 코드 1 로 실패한다. 프로젝트는 0건이어도 된다 (섹션만 빠진다).
 
-정본 스키마: docs/PROFILE_SCHEMA.md
+정본 스키마: docs/PROFILE_SCHEMA.md · docs/PROJECT_SCHEMA.md
 공개 범위·금지 패턴: docs/PRIVACY.md
 """
 from __future__ import annotations
@@ -84,6 +84,20 @@ SIGNAL_ROWS = (
 
 # 평균 길이가 평균 대화 길이의 이 배수 이상이면 대비를 배지로 표시한다.
 CHAT_GAP_RATIO = 2.0
+
+# ── 프로젝트 (docs/PROJECT_SCHEMA.md) ─────────────────────────────────────────
+# 과제 상태. 이 넷 밖의 값은 거부한다 — 카드 색과 정렬이 여기에 묶여 있다.
+PROJECT_STATUSES = ("준비", "진행중", "보류", "완료")
+PROJECT_STATUS_CLASS = {"준비": "ps-todo", "진행중": "ps-doing", "보류": "ps-hold", "완료": "ps-done"}
+# 목록에서 진행 중인 과제가 먼저 오게 한다.
+PROJECT_STATUS_ORDER = {"진행중": 0, "준비": 1, "보류": 2, "완료": 3}
+MILESTONE_STATES = ("done", "doing", "todo")
+MILESTONE_KO = {"done": "완료", "doing": "진행 중", "todo": "예정"}
+# 영역별 현황의 state 는 자유 텍스트다. 색만 낱말로 추정한다.
+WORK_STATE_HINTS = (("완료", "ws-done"), ("진행", "ws-doing"), ("검토", "ws-doing"),
+                    ("대기", "ws-todo"), ("보류", "ws-hold"), ("미착수", "ws-todo"))
+# 과제 페이지 상단 고정 문구. 위키 요약을 확정 계획으로 읽지 않게 하는 장치다.
+PROJECT_BANNER = "과제 페이지는 위키 요약이다. 일정·범위는 데이터 기준일 시점의 상태이며 확정이 아니다."
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -220,6 +234,83 @@ def validate(data, json_path: "Path | str"):
     return errors
 
 
+def validate_project(data, json_path: "Path | str"):
+    """프로젝트 JSON 의 거부 사유를 돌려준다. 빈 리스트면 통과 (docs/PROJECT_SCHEMA.md).
+
+    프로필과 같은 금지 키·금지 패턴을 그대로 적용한다. 과제 페이지도 public 으로 나간다.
+    """
+    json_path = Path(json_path)
+    errors = []
+    E = errors.append
+
+    if not isinstance(data, dict):
+        return [f"최상위가 객체가 아닙니다 (현재 {type(data).__name__})"]
+
+    if data.get("schema_version") != SCHEMA_VERSION:
+        E(f"schema_version: {SCHEMA_VERSION} 이어야 합니다 (현재 {data.get('schema_version')!r})")
+
+    name = data.get("name")
+    stem = json_path.stem
+    if not isinstance(name, str) or not name.strip():
+        E("name: 비어 있습니다")
+    elif name.strip() != stem:
+        E(f"name: 파일명과 다릅니다 (name={name.strip()!r} · 파일={stem!r})")
+    elif UNSAFE_NAME.search(name) or name.strip() in (".", ".."):
+        E(f"name: 파일 경로로 쓸 수 없는 문자가 있습니다 ({name.strip()!r})")
+
+    if not text(data.get("title")):
+        E("title: 비어 있습니다 (카드에 표시할 과제명)")
+
+    status = text(data.get("status"))
+    if status not in PROJECT_STATUSES:
+        E(f"status: {' | '.join(PROJECT_STATUSES)} 중 하나여야 합니다 (현재 {status!r})")
+
+    ms = data.get("milestones", [])
+    if ms is not None and not isinstance(ms, list):
+        E("milestones: 배열이어야 합니다")
+    else:
+        for i, m in enumerate(ms or []):
+            if not isinstance(m, dict) or not text(m.get("label")):
+                E(f"milestones[{i}]: {{\"label\":…, \"date\":…, \"state\":…}} 객체가 필요합니다")
+            elif text(m.get("state")) not in MILESTONE_STATES:
+                E(f"milestones[{i}].state: {' | '.join(MILESTONE_STATES)} 중 하나여야 합니다 "
+                  f"(현재 {text(m.get('state'))!r})")
+
+    for key in ("workstreams", "members", "recent"):
+        v = data.get(key, [])
+        if v is not None and not isinstance(v, list):
+            E(f"{key}: 배열이어야 합니다")
+    for i, m in enumerate(data.get("members") or []):
+        if not isinstance(m, dict) or not text(m.get("name")):
+            E(f"members[{i}]: {{\"name\":…, \"role\":…}} 객체가 필요합니다")
+
+    for p in scan_forbidden_keys(data):
+        E(f"금지 키: {p} — 원문 인용·성별 추정은 넣지 않습니다 (docs/PRIVACY.md)")
+
+    blob = json.dumps(data, ensure_ascii=False)
+    for label, rx in FORBIDDEN_PATTERNS:
+        m = rx.search(blob)
+        if m:
+            E(f"금지 패턴({label}): {mask(m.group(0))} — docs/PRIVACY.md")
+
+    return errors
+
+
+def project_progress(milestones):
+    """(완료 수, 전체 수, 다음 마일스톤 라벨). 진행 중인 것이 있으면 그것이 '다음'이다."""
+    items = [m for m in (milestones or []) if isinstance(m, dict) and text(m.get("label"))]
+    done = sum(1 for m in items if text(m.get("state")) == "done")
+    nxt = ""
+    for want in ("doing", "todo"):
+        for m in items:
+            if text(m.get("state")) == want:
+                nxt = text(m.get("label"))
+                break
+        if nxt:
+            break
+    return done, len(items), nxt
+
+
 def load_json(path: Path):
     """(data, 오류문) 을 돌려준다."""
     try:
@@ -242,6 +333,7 @@ CSS = """
   --fun:#6D4A9E; --fun-soft:#F0E9FA; --fun-bg:#FAF6FF; --fun-stripe:rgba(109,74,158,.045);
   --talk:#0F6B4F; --talk-soft:#E2F3EC;
   --warn:#98310D; --warn-soft:#FCE6D9; --warn-line:#E9A98C;
+  --proj:#1F5A9E; --proj-soft:#E3ECF8; --proj-line:#B9CDEB;
   --shadow:0 1px 2px rgba(23,20,15,.05);
 }
 @media (prefers-color-scheme:dark){
@@ -253,6 +345,7 @@ CSS = """
     --fun:#C4A4F0; --fun-soft:#251E33; --fun-bg:#1C1826; --fun-stripe:rgba(196,164,240,.06);
     --talk:#6FD3AA; --talk-soft:#12261E;
     --warn:#FFAA82; --warn-soft:#3A2115; --warn-line:#6E4128;
+    --proj:#8DB8F2; --proj-soft:#172538; --proj-line:#2C4468;
     --shadow:none;
   }
 }
@@ -288,6 +381,7 @@ li{margin:0 0 6px}
   border-bottom:1px solid var(--warn-line);padding:9px 18px;font-size:12.5px;font-weight:700;
   text-align:center;line-height:1.45}
 .banner span{font-weight:400;display:block;font-size:11.5px;opacity:.85;margin-top:2px}
+.banner.proj{background:var(--proj-soft);color:var(--proj);border-bottom-color:var(--proj-line)}
 
 /* 섹션 */
 .sec{margin:32px 0 0}
@@ -393,6 +487,83 @@ li{margin:0 0 6px}
   color:var(--warn);border:1px solid var(--warn-line);border-radius:10px;padding:7px 10px;
   font-size:11.5px;font-weight:800;line-height:1.35}
 
+/* 목록 섹션 라벨 — 멤버는 잉크색, 프로젝트는 파랑 */
+.sec-members{color:var(--ink);margin-top:28px}
+.sec-members .sectag{background:var(--soft);color:var(--ink2);border:1px solid var(--line)}
+.sec-proj{color:var(--proj);margin-top:40px}
+.sec-proj .sectag{background:var(--proj-soft);color:var(--proj)}
+.sec-proj .card{border-color:var(--proj-soft);border-left:4px solid var(--proj)}
+
+/* 프로젝트 카드 */
+.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
+.pcard{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
+  border-radius:16px;padding:17px;text-decoration:none;color:inherit;box-shadow:var(--shadow)}
+.pcard:hover{border-color:var(--proj)}
+.phead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.pphase{font-size:12px;color:var(--muted)}
+.pname{font-size:18px;font-weight:800;line-height:1.3;color:var(--ink)}
+.pcode{font-size:11.5px;color:var(--muted);font-weight:700;margin-left:6px;letter-spacing:.06em}
+.psum{font-size:13px;color:var(--ink2);margin-top:8px;line-height:1.55;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pnext{font-size:12.5px;color:var(--proj);margin-top:auto;padding-top:11px;font-weight:700;line-height:1.45}
+.pnext i{font-style:normal;font-weight:800;font-size:10.5px;letter-spacing:.08em;color:var(--muted);
+  margin-right:6px}
+.pcard .mchips{margin-top:10px}
+.mchip.proj{background:var(--proj-soft);border-color:var(--proj-soft);color:var(--proj);font-weight:700}
+
+/* 과제 상태 배지 */
+.ps{display:inline-block;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;
+  letter-spacing:.04em;white-space:nowrap}
+.ps-doing{background:var(--proj-soft);color:var(--proj)}
+.ps-todo{background:var(--line2);color:var(--muted);border:1px solid var(--line)}
+.ps-hold{background:var(--warn-soft);color:var(--warn)}
+.ps-done{background:var(--talk-soft);color:var(--talk)}
+
+/* 진행률 — 마일스톤 완료 수 / 전체 수. 지어낸 % 가 아니다 */
+.prog{position:relative;height:9px;border-radius:5px;background:var(--line2);overflow:hidden;margin-top:12px}
+.prog span{display:block;height:100%;border-radius:5px;background:var(--proj);min-width:3px}
+.prog.zero span{display:none}
+.progk{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:var(--muted);
+  margin-top:5px;font-variant-numeric:tabular-nums}
+.progk b{color:var(--proj);font-weight:800}
+
+/* 마일스톤 타임라인 */
+.ms{list-style:none;padding:0;margin:14px 0 0;position:relative}
+.ms::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.ms li{position:relative;padding:0 0 12px 26px;margin:0;font-size:13.5px;line-height:1.45}
+.ms li:last-child{padding-bottom:0}
+.ms li::before{content:"";position:absolute;left:1px;top:4px;width:14px;height:14px;border-radius:50%;
+  background:var(--card);border:2px solid var(--line)}
+.ms li.done::before{background:var(--proj);border-color:var(--proj)}
+.ms li.done::after{content:"";position:absolute;left:5px;top:7px;width:4px;height:7px;
+  border:solid var(--card);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.ms li.doing::before{border-color:var(--proj);border-width:3px;background:var(--card)}
+.ms li.doing{font-weight:800;color:var(--proj)}
+.ms li.todo{color:var(--muted)}
+.ms .d{display:inline-block;min-width:88px;font-variant-numeric:tabular-nums;color:var(--muted);
+  font-size:12px;font-weight:400;margin-right:6px}
+.ms .k{font-size:10.5px;font-weight:800;letter-spacing:.06em;margin-left:8px;color:var(--muted)}
+
+/* 영역별 현황 */
+.ws{display:inline-block;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;
+  white-space:nowrap;background:var(--line2);color:var(--ink2);border:1px solid var(--line)}
+.ws-done{background:var(--talk-soft);color:var(--talk);border-color:var(--talk-soft)}
+.ws-doing{background:var(--proj-soft);color:var(--proj);border-color:var(--proj-soft)}
+.ws-todo{background:var(--line2);color:var(--muted)}
+.ws-hold{background:var(--warn-soft);color:var(--warn);border-color:var(--warn-line)}
+td.area{font-weight:800;white-space:nowrap;color:var(--ink)}
+
+/* 담당 칩 — 프로필이 있으면 링크, 없으면 글자만 */
+.mems{display:flex;flex-wrap:wrap;gap:8px}
+.mem{display:inline-flex;align-items:baseline;gap:7px;background:var(--soft);border:1px solid var(--line);
+  border-radius:12px;padding:8px 12px;text-decoration:none;color:var(--ink);font-size:13.5px;font-weight:800}
+a.mem:hover{border-color:var(--proj);color:var(--proj)}
+.mem i{font-style:normal;font-weight:400;font-size:12px;color:var(--muted)}
+.mem.noprofile{opacity:.75}
+
+/* 최근 변화 */
+.recent td.d{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted);width:1%}
+
 /* signals 표 */
 details.sig{margin-top:32px;background:var(--card);border:1px solid var(--line);border-radius:14px;
   padding:0 17px}
@@ -434,8 +605,9 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);font-si
   .hero .in{padding:0 14px}
   .banner{padding:9px 14px;font-size:11.5px}
   .funwrap{padding:12px}
-  .card,.talk,.mcard{padding:14px}
+  .card,.talk,.mcard,.pcard{padding:14px}
   .secsub{margin-left:0;width:100%}
+  .ms .d{display:block;min-width:0;margin:0}
 }
 """
 
@@ -762,9 +934,197 @@ def member_card(entry: dict) -> str:
             + badge + '</a>')
 
 
-def render_index(entries, skipped, part: str, built: str, generated: str) -> str:
-    chips = [f'<span class="chip"><b>멤버</b>{len(entries)}명</span>',
-             f'<span class="chip"><b>빌드</b>{esc(built)}</span>']
+# ══════════════════════════════════════════════════════════════════════════════
+# 프로젝트 — 카드와 상세 페이지 (docs/PROJECT_SCHEMA.md)
+# ══════════════════════════════════════════════════════════════════════════════
+def status_badge(status: str) -> str:
+    cls = PROJECT_STATUS_CLASS.get(text(status), "ps-todo")
+    return f'<span class="ps {cls}">{esc(status or "상태 미기재")}</span>'
+
+
+def work_state_chip(state: str) -> str:
+    """영역 상태는 자유 텍스트다. 낱말로 색만 고르고 글자는 그대로 둔다."""
+    s = text(state)
+    if not s:
+        return ""
+    cls = ""
+    for word, c in WORK_STATE_HINTS:
+        if word in s:
+            cls = c
+            break
+    return f'<span class="ws {cls}">{esc(s)}</span>'
+
+
+def progress_html(milestones, compact=False) -> str:
+    """마일스톤 완료 수로 막대를 그린다. 임의의 % 를 받지 않는다 — 근거 없는 수치를 싣지 않기 위해서다."""
+    done, total, nxt = project_progress(milestones)
+    if total == 0:
+        return ""
+    pct = done / total * 100
+    bar = (f'<div class="prog{" zero" if done == 0 else ""}">'
+           f'<span style="width:{pct:.1f}%"></span></div>')
+    left = f'<b>마일스톤 {done}/{total}</b> 완료'
+    right = f'다음 · {esc(nxt)}' if (nxt and not compact) else ""
+    return bar + f'<div class="progk"><span>{left}</span><span>{right}</span></div>'
+
+
+def milestones_html(milestones) -> str:
+    items = [m for m in (milestones or []) if isinstance(m, dict) and text(m.get("label"))]
+    if not items:
+        return '<p class="empty">마일스톤이 아직 없습니다</p>'
+    lis = []
+    for m in items:
+        st = text(m.get("state"))
+        st = st if st in MILESTONE_STATES else "todo"
+        date = text(m.get("date"))
+        lis.append(f'<li class="{st}"><span class="d">{esc(date)}</span>{esc(m.get("label"))}'
+                   f'<span class="k">{esc(MILESTONE_KO[st])}</span></li>')
+    return f'<ul class="ms">{"".join(lis)}</ul>'
+
+
+def workstreams_html(rows) -> str:
+    rows = [r for r in (rows or []) if isinstance(r, dict) and text(r.get("area"))]
+    if not rows:
+        return '<p class="empty">영역별 현황이 아직 없습니다</p>'
+    trs = "".join(
+        f'<tr><td class="area">{esc(r.get("area"))}</td>'
+        f'<td>{work_state_chip(r.get("state"))}</td>'
+        f'<td>{esc(text(r.get("note")))}</td></tr>' for r in rows)
+    return ('<div class="tscroll"><table><thead><tr><th>영역</th><th>상태</th><th>메모</th></tr></thead>'
+            f'<tbody>{trs}</tbody></table></div>')
+
+
+def members_html(members, member_hrefs: dict, prefix: str) -> str:
+    """담당자 칩. 프로필 카드가 있는 사람만 링크를 건다. 없는 사람은 이름만 남긴다."""
+    items = [m for m in (members or []) if isinstance(m, dict) and text(m.get("name"))]
+    if not items:
+        return '<p class="empty">담당이 아직 적혀 있지 않습니다</p>'
+    chips = []
+    for m in items:
+        name, role = text(m.get("name")), text(m.get("role"))
+        inner = esc(name) + (f'<i>{esc(role)}</i>' if role else "")
+        href = member_hrefs.get(name)
+        if href:
+            chips.append(f'<a class="mem" href="{esc(prefix + href)}">{inner}</a>')
+        else:
+            chips.append(f'<span class="mem noprofile" title="프로필 카드 없음">{inner}</span>')
+    return f'<div class="mems">{"".join(chips)}</div>'
+
+
+def recent_html(rows) -> str:
+    rows = [r for r in (rows or []) if isinstance(r, dict) and text(r.get("note"))]
+    if not rows:
+        return '<p class="empty">최근 변화가 아직 없습니다</p>'
+    trs = "".join(f'<tr><td class="d">{esc(text(r.get("date")))}</td><td>{esc(r.get("note"))}</td></tr>'
+                  for r in rows)
+    return f'<div class="tscroll"><table class="recent"><tbody>{trs}</tbody></table></div>'
+
+
+def project_banner_html() -> str:
+    return (f'<div class="banner proj">{esc(PROJECT_BANNER)}'
+            '<span>상세 근거·검토 항목은 위키 본문에 있고 이 사이트에는 싣지 않는다.</span></div>')
+
+
+def render_project(data: dict, built: str, member_hrefs: dict) -> str:
+    name = text(data.get("name"))
+    title = text(data.get("title")) or name
+    part = text(data.get("part")) or DEFAULT_PART
+    status = text(data.get("status"))
+    phase = text(data.get("phase"))
+    target = text(data.get("target"))
+    codename = text(data.get("codename"))
+    generated = text(data.get("generated"))
+    summary = text(data.get("summary"))
+    tagline = text(data.get("tagline"))
+    members = data.get("members") or []
+
+    chips = [f'<span class="chip"><b>상태</b>{esc(status)}</span>']
+    if phase:
+        chips.append(f'<span class="chip"><b>단계</b>{esc(phase)}</span>')
+    if target:
+        chips.append(f'<span class="chip"><b>목표</b>{esc(target)}</span>')
+    if codename:
+        chips.append(f'<span class="chip"><b>코드명</b>{esc(codename)}</span>')
+    if members:
+        chips.append(f'<span class="chip"><b>담당</b>{len(members)}명</span>')
+    if generated:
+        chips.append(f'<span class="chip"><b>데이터 기준</b>{esc(generated)}</span>')
+
+    hero = ('<header class="hero"><div class="in">'
+            '<a class="back" href="../index.html#projects">← 목록</a>'
+            f'<div class="hero-eyebrow">프로젝트 · {esc(part)}</div>'
+            f'<h1 class="hero-title">{esc(title)}</h1>'
+            + (f'<div class="hero-sub">{esc(tagline or summary)}</div>' if (tagline or summary) else "")
+            + f'<div class="hero-chips">{"".join(chips)}</div>'
+            '</div></header>')
+
+    intro = ""
+    if tagline and summary:
+        intro = card("한 줄 정의", f'<p style="margin:0">{esc(summary)}</p>')
+
+    # 01 진행 상황 — 진행률은 마일스톤 완료 수. 사람이 % 를 적는 칸은 없다.
+    prog_body = card("진행률", progress_html(data.get("milestones")) or
+                     '<p class="empty">마일스톤이 없어 진행률을 계산하지 않는다</p>')
+    ms_body = card("마일스톤", milestones_html(data.get("milestones")))
+    s_prog = sec("sec-proj", "위키 요약", "진행 상황",
+                 prog_body + f'<div style="margin-top:13px">{ms_body}</div>',
+                 "완료한 마일스톤 수로만 계산한다")
+
+    s_work = sec("sec-proj", "영역별", "지금 어디까지 왔나",
+                 card("", workstreams_html(data.get("workstreams"))),
+                 "데이터 기준일 시점")
+
+    s_mem = sec("sec-proj", "담당", "누가 하나",
+                card("", members_html(members, member_hrefs, "../")),
+                "카드가 있는 사람은 프로필로 이어진다")
+
+    s_next = sec("sec-proj", "다음", "다음 단계",
+                 card("", ul(data.get("next"), "다음 단계가 아직 적혀 있지 않습니다")))
+
+    s_recent = sec("sec-proj", "이력", "최근 변화",
+                   card("", recent_html(data.get("recent"))),
+                   "최신이 위")
+
+    body = (hero + project_banner_html() + '<main class="wrap">'
+            + (f'<div style="margin-top:28px">{intro}</div>' if intro else "")
+            + s_prog + s_work + s_mem + s_next + s_recent
+            + footer_html(part, built, data.get("sources")) + '</main>')
+    return html_doc(f"{title} · {part} 과제", body)
+
+
+def project_card(entry: dict) -> str:
+    data = entry["data"]
+    title = text(data.get("title")) or text(data.get("name"))
+    codename = text(data.get("codename"))
+    status = text(data.get("status"))
+    phase = text(data.get("phase"))
+    summary = text(data.get("summary"))
+    members = data.get("members") or []
+    _, _, nxt = project_progress(data.get("milestones"))
+
+    chips = [f'<span class="mchip proj">{esc(b)}</span>' for b in str_list(data.get("badges"), 3)]
+    if members:
+        chips.append(f'<span class="mchip">담당 {len(members)}명</span>')
+
+    return (f'<a class="pcard" href="{esc(entry["href"])}">'
+            f'<div class="phead">{status_badge(status)}'
+            + (f'<span class="pphase">{esc(phase)}</span>' if phase else "")
+            + '</div>'
+            f'<div class="pname">{esc(title)}'
+            + (f'<span class="pcode">{esc(codename)}</span>' if codename else "")
+            + '</div>'
+            + (f'<div class="psum">{esc(summary)}</div>' if summary else "")
+            + progress_html(data.get("milestones"), compact=True)
+            + (f'<div class="pnext"><i>다음</i>{esc(nxt)}</div>' if nxt else "")
+            + (f'<div class="mchips">{"".join(chips)}</div>' if chips else "")
+            + '</a>')
+
+
+def render_index(entries, skipped, part: str, built: str, generated: str, projects=()) -> str:
+    chips = [f'<span class="chip"><b>멤버</b>{len(entries)}명</span>']
+    if projects:
+        chips.append(f'<span class="chip"><b>프로젝트</b>{len(projects)}건</span>')
+    chips.append(f'<span class="chip"><b>빌드</b>{esc(built)}</span>')
     if generated:
         chips.append(f'<span class="chip"><b>데이터 기준</b>{esc(generated)}</span>')
     low_n = sum(1 for e in entries
@@ -773,10 +1133,10 @@ def render_index(entries, skipped, part: str, built: str, generated: str) -> str
         chips.append(f'<span class="chip"><b>표본 부족</b>{low_n}명</span>')
 
     hero = ('<header class="hero"><div class="in">'
-            '<div class="hero-eyebrow">멤버 프로필</div>'
+            '<div class="hero-eyebrow">멤버 프로필 · 프로젝트</div>'
             f'<h1 class="hero-title">{esc(part)}</h1>'
-            '<div class="hero-sub">슬랙·텔레그램에서 집계한 말투 신호로 만든 파트원 카드. '
-            '위키 본문과 원본 대화는 여기에 실리지 않는다.</div>'
+            '<div class="hero-sub">슬랙·텔레그램에서 집계한 말투 신호로 만든 파트원 카드와 '
+            '진행 중인 과제 요약. 위키 본문과 원본 대화는 여기에 실리지 않는다.</div>'
             f'<div class="hero-chips">{"".join(chips)}</div>'
             '</div></header>')
 
@@ -784,17 +1144,25 @@ def render_index(entries, skipped, part: str, built: str, generated: str) -> str
         cards = f'<div class="cards">{"".join(member_card(e) for e in entries)}</div>'
     else:
         cards = card("", '<p class="empty" style="margin:0">표시할 프로필이 없습니다</p>')
+    s_members = sec("sec-members", "관측 신호", "멤버", cards, "카드를 누르면 상세로")
+
+    s_projects = ""
+    if projects:
+        pcards = f'<div class="pcards">{"".join(project_card(p) for p in projects)}</div>'
+        s_projects = ('<div id="projects"></div>'
+                      + sec("sec-proj", "위키 요약", "프로젝트", pcards,
+                            "진행률은 마일스톤 완료 수 · 확정 계획이 아니다"))
 
     skips = ""
     if skipped:
         items = "".join(f'<li><b>{esc(s["file"])}</b> — {esc(s["reason"])}</li>' for s in skipped)
         skips = ('<div class="warnbox skips"><h3>검증에서 건너뛴 파일 '
                  f'{len(skipped)}건</h3><ul>{items}</ul>'
-                 '<p style="margin-top:9px">한 사람 때문에 전체가 막히지 않도록 그 파일만 빼고 빌드했다. '
-                 'docs/PROFILE_SCHEMA.md 를 확인하고 고치면 다음 빌드에 다시 들어온다.</p></div>')
+                 '<p style="margin-top:9px">한 건 때문에 전체가 막히지 않도록 그 파일만 빼고 빌드했다. '
+                 'docs/PROFILE_SCHEMA.md · docs/PROJECT_SCHEMA.md 를 확인하고 고치면 다음 빌드에 다시 들어온다.</p></div>')
 
     body = (hero + banner_html() + '<main class="wrap">'
-            + '<section class="sec" style="margin-top:28px">' + cards + '</section>'
+            + s_members + s_projects
             + skips + footer_html(part, built) + '</main>')
     return html_doc(f"{part} 멤버 프로필", body)
 
@@ -802,37 +1170,57 @@ def render_index(entries, skipped, part: str, built: str, generated: str) -> str
 # ══════════════════════════════════════════════════════════════════════════════
 # 빌드
 # ══════════════════════════════════════════════════════════════════════════════
-def build(data_dir: Path, out_dir: Path) -> int:
+def load_entries(data_dir: Path, validator, sub: str, label: str):
+    """디렉터리의 JSON 을 한 건씩 검증해 (통과 목록, 건너뜀 목록) 을 돌려준다.
+
+    프로필과 프로젝트가 같은 규칙으로 돈다 — 어긋난 파일만 빼고, 이유는 stderr 에 남긴다.
+    """
+    entries, skipped = [], []
+    for jp in sorted(data_dir.glob("*.json")):
+        shown = f"{label}/{jp.name}"
+        data, err = load_json(jp)
+        if err or data is None:
+            skipped.append({"file": shown, "reason": err or "빈 파일"})
+            warn(f"건너뜀 {shown}: {err}")
+            continue
+        errors = validator(data, jp)
+        if errors:
+            head = errors[0] + (f" (외 {len(errors) - 1}건)" if len(errors) > 1 else "")
+            skipped.append({"file": shown, "reason": head})
+            warn(f"건너뜀 {shown}: 검증 실패 {len(errors)}건")
+            for e in errors:
+                warn(f"  - {e}")
+            continue
+        name = text(data.get("name"))
+        entries.append({"data": data, "name": name, "href": f"{sub}/{quote(name)}.html"})
+    return entries, skipped
+
+
+def build(data_dir: Path, out_dir: Path, projects_dir: "Path | None" = None) -> int:
     if not data_dir.is_dir():
         warn(f"데이터 디렉터리가 없습니다: {data_dir}")
         return 1
 
-    paths = sorted(data_dir.glob("*.json"))
-    print(f"데이터: {data_dir} · 프로필 {len(paths)}건")
-
-    entries, skipped = [], []
-    for jp in paths:
-        data, err = load_json(jp)
-        if err:
-            skipped.append({"file": jp.name, "reason": err})
-            warn(f"건너뜀 {jp.name}: {err}")
-            continue
-        errors = validate(data, jp)
-        if errors:
-            head = errors[0] + (f" (외 {len(errors) - 1}건)" if len(errors) > 1 else "")
-            skipped.append({"file": jp.name, "reason": head})
-            warn(f"건너뜀 {jp.name}: 검증 실패 {len(errors)}건")
-            for e in errors:
-                warn(f"  - {e}")
-            continue
-        entries.append({"data": data, "name": text(data.get("name")),
-                        "href": f"m/{quote(text(data.get('name')))}.html"})
+    print(f"데이터: {data_dir} · 프로필 {len(list(data_dir.glob('*.json')))}건")
+    entries, skipped = load_entries(data_dir, validate, "m", "profiles")
 
     if not entries:
         warn("")
         warn(f"유효한 프로필이 0건입니다 — 사이트를 만들지 않습니다 "
              f"(건너뜀 {len(skipped)}건)")
         return 1
+
+    # 프로젝트는 있으면 싣고 없으면 섹션만 빠진다. 프로필과 달리 0건이어도 빌드는 성공이다.
+    projects = []
+    if projects_dir is not None and projects_dir.is_dir():
+        print(f"프로젝트: {projects_dir} · {len(list(projects_dir.glob('*.json')))}건")
+        projects, p_skipped = load_entries(projects_dir, validate_project, "p", "projects")
+        skipped.extend(p_skipped)
+        # 진행 중 → 준비 → 보류 → 완료 순. 같은 상태 안에서는 order(작을수록 앞), 그다음 이름.
+        projects.sort(key=lambda e: (PROJECT_STATUS_ORDER.get(text(e["data"].get("status")), 9),
+                                     num(e["data"].get("order"), 100), e["name"]))
+    elif projects_dir is not None:
+        print(f"프로젝트 디렉터리가 없어 건너뜁니다: {projects_dir}")
 
     entries.sort(key=lambda e: e["name"])
     part = text(entries[0]["data"].get("part")) or DEFAULT_PART
@@ -844,12 +1232,21 @@ def build(data_dir: Path, out_dir: Path) -> int:
     for e in entries:
         (m_dir / f"{e['name']}.html").write_text(render_person(e["data"], built), encoding="utf-8")
 
+    if projects:
+        member_hrefs = {e["name"]: e["href"] for e in entries}
+        p_dir = out_dir / "p"
+        p_dir.mkdir(parents=True, exist_ok=True)
+        for e in projects:
+            (p_dir / f"{e['name']}.html").write_text(
+                render_project(e["data"], built, member_hrefs), encoding="utf-8")
+
     index = out_dir / "index.html"
-    index.write_text(render_index(entries, skipped, part, built, generated), encoding="utf-8")
+    index.write_text(render_index(entries, skipped, part, built, generated, projects), encoding="utf-8")
     # GitHub Pages 가 Jekyll 로 후처리하지 않게 한다.
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
 
     print(f"만들었습니다 -> {index} (멤버 {len(entries)}명"
+          + (f" · 프로젝트 {len(projects)}건" if projects else "")
           + (f" · 건너뜀 {len(skipped)}건" if skipped else "") + ")")
     if skipped:
         warn("")
@@ -862,17 +1259,20 @@ def build(data_dir: Path, out_dir: Path) -> int:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
         prog="build_site.py",
-        description="멤버 프로필 JSON 으로 정적 사이트를 만든다 (표준 라이브러리만 사용).",
+        description="멤버 프로필·프로젝트 JSON 으로 정적 사이트를 만든다 (표준 라이브러리만 사용).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="예)\n  python3 scripts/build_site.py --out _site\n")
     p.add_argument("--out", required=True, metavar="디렉터리",
                    help="빌드 결과를 쓸 위치 (예: _site)")
     p.add_argument("--data", metavar="디렉터리",
                    help="프로필 JSON 디렉터리 (기본: data/profiles)")
+    p.add_argument("--projects", metavar="디렉터리",
+                   help="프로젝트 JSON 디렉터리 (기본: data/projects · 없으면 섹션 생략)")
     args = p.parse_args(argv)
 
     data_dir = Path(args.data) if args.data else ROOT / "data" / "profiles"
-    return build(data_dir, Path(args.out))
+    projects_dir = Path(args.projects) if args.projects else ROOT / "data" / "projects"
+    return build(data_dir, Path(args.out), projects_dir)
 
 
 if __name__ == "__main__":

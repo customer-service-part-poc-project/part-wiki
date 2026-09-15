@@ -29,7 +29,8 @@ https://github.com/customer-service-part-poc-project/part-wiki
 | 파트원 실명과 직무 | ⚠️ 파트 내 공유 전제 |
 
 **그래서 이 사이트는 위키 전문을 내보내지 않는다.**
-`data/profiles/*.json` 에 담긴 **멤버 프로필만** 빌드 대상이다. 화이트리스트 방식이다.
+`data/profiles/*.json` 의 **멤버 프로필**과 `data/projects/*.json` 의 **프로젝트 요약**만 빌드 대상이다.
+화이트리스트 방식이다. 프로젝트 요약은 위키를 읽고 사람이 다시 쓴 것이지, 위키 본문의 복사가 아니다.
 
 `wiki/` · `raw/` 는 빌드 입력이 아니며 `_site/` 에 복사되지 않는다.
 
@@ -42,6 +43,7 @@ https://github.com/customer-service-part-poc-project/part-wiki
 - 집계된 말투 신호 (건수·비율. **원문 인용 아님**)
 - 업무 성향 5축과 강점
 - 재미 코너 (MBTI · 나이대 · 말투 뱃지 · 받은 반응 · 별명 · 대화 가이드)
+- 프로젝트 요약 (과제명 · 상태 · 마일스톤 · 영역별 현황 · 담당 · 다음 단계) — `docs/PROJECT_SCHEMA.md`
 
 **안 나가는 것**
 - 위키 본문 전체 (`wiki/`)
@@ -49,12 +51,13 @@ https://github.com/customer-service-part-poc-project/part-wiki
 - 임원·타부서 인물 이름
 - 사내 URL · 문서 링크
 - 발화 원문 인용
+- 법무 검토 **항목** · 경쟁 분석 · 시장 수치 · 벤더 이름 (프로젝트 카드에서도 뺀다. 상태만 적는다)
 
 ---
 
 ## 빌드가 거부하는 금지 패턴
 
-`scripts/build_site.py` 가 프로필 JSON 전체를 문자열로 훑어 아래를 찾으면 **그 파일을 건너뛴다.**
+`scripts/build_site.py` 가 프로필·프로젝트 JSON 전체를 문자열로 훑어 아래를 찾으면 **그 파일을 건너뛴다.**
 
 | 분류 | 패턴 |
 |---|---|

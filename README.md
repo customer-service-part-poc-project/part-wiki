@@ -125,15 +125,20 @@ LLM이 고치는 걸 실시간으로 보면서 링크를 따라다닐 수 있다
 
 **▶ https://customer-service-part-poc-project.github.io/part-wiki/**
 
-파트원 프로필과 재미 코너(MBTI·나이대·말투 뱃지·받은 반응·별명·대화 가이드)를 GitHub Pages 로 공개하는 정적 사이트.
-위키 본문(`wiki/`, `raw/`)은 빌드 대상이 아니다 — `data/profiles/*.json` 만 화이트리스트로 내보낸다.
+파트원 프로필과 재미 코너(MBTI·나이대·말투 뱃지·받은 반응·별명·대화 가이드), 그리고 **진행 중인 과제 카드**를
+GitHub Pages 로 공개하는 정적 사이트.
+위키 본문(`wiki/`, `raw/`)은 빌드 대상이 아니다 — `data/profiles/*.json` 과 `data/projects/*.json` 만 화이트리스트로 내보낸다.
 
 **파이프라인**
 
 ```
 raw/ 대화 원문  →  scripts/extract_signals.py  →  data/signals.json (집계 신호)
 data/profiles/*.json (사람이 채운 프로필)      →  scripts/build_site.py  →  _site/
+data/projects/*.json (위키를 읽고 쓴 과제 요약) →  scripts/build_site.py  →  _site/p/
 ```
+
+과제 카드는 상태·단계·마일스톤·영역별 현황·담당·다음 단계를 담는다. **진행률은 마일스톤 완료 수**로만 계산한다.
+법무 검토 항목·경쟁 분석·벤더 이름은 싣지 않는다 (→ [`docs/PROJECT_SCHEMA.md`](docs/PROJECT_SCHEMA.md)).
 
 **로컬에서 보기**
 

@@ -6,7 +6,7 @@
 #
 # ⚠️ 이 저장소는 public 이다 (2026-09-11 확인, 파트가 인지하고 공개로 두기로 결정).
 #    그래서 이 사이트는 위키 본문(wiki/, raw/)을 내보내지 않고,
-#    data/profiles/*.json 화이트리스트만 빌드한다 (docs/PRIVACY.md 참고).
+#    data/profiles/*.json · data/projects/*.json 화이트리스트만 빌드한다 (docs/PRIVACY.md 참고).
 name: 멤버 프로필 사이트 배포
 
 on:
@@ -20,6 +20,7 @@ on:
       - 'data/**'
       - 'scripts/**'
       - 'docs/PROFILE_SCHEMA.md'
+      - 'docs/PROJECT_SCHEMA.md'
       - '.github/workflows/pages.yml'
   workflow_dispatch:   # Actions 탭에서 수동 실행
 

@@ -279,5 +279,116 @@ class BadgeChipTests(unittest.TestCase):
         self.assertLessEqual(len(self.short({"marker": "위임분담", "ratio": 6.3, "kind": "많이"})), 12)
 
 
+def make_project():
+    """docs/PROJECT_SCHEMA.md 기준의 정상 프로젝트 JSON."""
+    return {
+        "schema_version": 1,
+        "name": "평생보장소득",
+        "title": "평생 보장소득 은퇴설계 플랫폼",
+        "part": "고객서비스파트",
+        "status": "진행중",
+        "phase": "사업계획 보고",
+        "target": "2027-07 출시 1차안",
+        "generated": "2026-09-15",
+        "summary": "한 줄 정의",
+        "badges": ["주력 과제"],
+        "milestones": [
+            {"label": "1차 보고", "date": "2026-08-20", "state": "done"},
+            {"label": "부회장 보고", "date": "2026-09 중", "state": "doing"},
+            {"label": "출시 1차안", "date": "2027-07", "state": "todo"},
+        ],
+        "workstreams": [{"area": "보고", "state": "진행중", "note": "2회 완료"}],
+        "members": [{"name": "이강민", "role": "총괄"}],
+        "next": ["부회장 보고"],
+        "recent": [{"date": "2026-09-15", "note": "스크럼"}],
+    }
+
+
+class ValidateProjectTests(unittest.TestCase):
+    """프로젝트 JSON 도 프로필과 같은 공개 규칙을 탄다 (docs/PROJECT_SCHEMA.md · docs/PRIVACY.md)."""
+
+    def setUp(self):
+        try:
+            import build_site  # type: ignore
+        except ImportError:
+            self.skipTest("build_site.py 가 아직 없습니다")
+        self.validate = getattr(build_site, "validate_project", None)
+        if not callable(self.validate):
+            self.skipTest("validate_project 가 아직 없습니다")
+
+    def _errors(self, data, filename="평생보장소득.json"):
+        return self.validate(data, pathlib.Path(filename))
+
+    def test_정상_프로젝트는_통과(self):
+        self.assertEqual(self._errors(make_project()), [])
+
+    def test_파일명과_name이_다르면_거부(self):
+        self.assertTrue(self._errors(make_project(), filename="변액.json"))
+
+    def test_status는_정해진_값만(self):
+        p = make_project()
+        p["status"] = "하는중"
+        self.assertTrue(any("status" in e for e in self._errors(p)))
+
+    def test_마일스톤_state는_정해진_값만(self):
+        p = make_project()
+        p["milestones"][0]["state"] = "finished"
+        self.assertTrue(any("milestones[0].state" in e for e in self._errors(p)))
+
+    def test_title이_없으면_거부(self):
+        p = make_project()
+        p["title"] = ""
+        self.assertTrue(any("title" in e for e in self._errors(p)))
+
+    def test_사내_URL_거부(self):
+        p = make_project()
+        p["summary"] = "자세한 내용은 https://www.notion.com/abc 참고"
+        self.assertTrue(any("금지 패턴" in e for e in self._errors(p)))
+
+    def test_임원_실명_거부(self):
+        p = make_project()
+        p["recent"][0]["note"] = "이창희 부사장 보고 완료"
+        self.assertTrue(any("금지 패턴" in e for e in self._errors(p)))
+
+    def test_금지_키_거부(self):
+        p = make_project()
+        p["workstreams"][0]["raw_quote"] = "원문 인용"
+        self.assertTrue(any("금지 키" in e for e in self._errors(p)))
+
+    def test_마일스톤과_담당이_비어도_통과(self):
+        p = make_project()
+        p["milestones"] = []
+        p["members"] = []
+        self.assertEqual(self._errors(p), [])
+
+
+class ProjectProgressTests(unittest.TestCase):
+    """진행률은 마일스톤 완료 수로만 계산한다. 사람이 % 를 적는 칸은 없다."""
+
+    def setUp(self):
+        try:
+            import build_site  # type: ignore
+        except ImportError:
+            self.skipTest("build_site.py 가 아직 없습니다")
+        self.prog = getattr(build_site, "project_progress", None)
+        if not callable(self.prog):
+            self.skipTest("project_progress 가 아직 없습니다")
+
+    def test_완료_수와_전체_수(self):
+        done, total, nxt = self.prog(make_project()["milestones"])
+        self.assertEqual((done, total), (1, 3))
+
+    def test_다음은_진행중이_우선(self):
+        self.assertEqual(self.prog(make_project()["milestones"])[2], "부회장 보고")
+
+    def test_진행중이_없으면_첫_예정(self):
+        ms = [{"label": "a", "state": "done"}, {"label": "b", "state": "todo"}]
+        self.assertEqual(self.prog(ms)[2], "b")
+
+    def test_비어_있으면_0(self):
+        self.assertEqual(self.prog([]), (0, 0, ""))
+        self.assertEqual(self.prog(None), (0, 0, ""))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -186,17 +186,22 @@ CS 자료에는 고객 실명·연락처·주소·주문번호·결제정보가 
 ## 7. 멤버 프로필 사이트
 
 `data/profiles/*.json` → GitHub Pages 로 공개되는 파트원 프로필. 위키와 별개의 산출물이다.
+`data/projects/*.json` → 같은 사이트의 **프로젝트 카드**. `wiki/projects/` 를 읽고 공개용으로 다시 쓴 요약이다.
 
 ```
 raw/ 대화  →  scripts/extract_signals.py  →  data/signals.json
                                                     ↓
                                           data/profiles/{이름}.json  (사람이 쓴 해석)
+wiki/projects/{과제}.md  →  (읽고 공개용으로 요약)  →  data/projects/{과제}.json
                                                     ↓
-                                          scripts/build_site.py  →  _site/
+                                          scripts/build_site.py  →  _site/  (m/ 멤버 · p/ 프로젝트)
 ```
 
-- **스키마 정본**: `docs/PROFILE_SCHEMA.md` · **공개 범위**: `docs/PRIVACY.md`
+- **스키마 정본**: `docs/PROFILE_SCHEMA.md` · `docs/PROJECT_SCHEMA.md` · **공개 범위**: `docs/PRIVACY.md`
 - 새 대화 원문을 `raw/` 에 넣으면 신호가 바뀐다. 프로필 갱신이 필요한지 확인한다
+- **`wiki/projects/` 페이지를 고치면 `data/projects/` 도 같이 본다.** 마일스톤·최근 변화·데이터 기준일이 낡는다
+- 프로젝트 카드의 **진행률은 마일스톤 완료 수**다. `%` 를 손으로 적는 칸은 없다 — 근거 없는 수치를 싣지 않는다
+- 프로젝트 카드에는 **법무 검토 항목·경쟁 분석·벤더 이름·임원 실명을 싣지 않는다.** 상태만 적는다
 - **재미 코너(`fun`)와 업무 성향(`profile`)을 섞지 않는다.** 섞이면 추측이 사실처럼 회람된다
 - MBTI·나이대는 근거 강도 `약함` 으로 반드시 표기한다
 - **근거가 0인 항목은 싣지 않는다.** 혈액형은 그래서 2026-09-15 에 뺐다.
