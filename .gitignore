@@ -6,3 +6,13 @@
 
 # 멤버 프로필 사이트 빌드 산출물 (scripts/build_site.py --out _site)
 _site/
+
+# 텔레그램 수집 — 자격증명·세션·수집 지점.
+# session 파일은 계정 접근 권한 그 자체다. 이 저장소는 public 이므로 절대 커밋하지 않는다.
+.telegram/
+
+# 파이썬 가상환경 (telethon 설치처)
+.venv/
+
+# 파이썬 캐시
+__pycache__/
