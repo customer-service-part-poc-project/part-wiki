@@ -494,21 +494,28 @@ li{margin:0 0 6px}
 .sec-proj .sectag{background:var(--proj-soft);color:var(--proj)}
 .sec-proj .card{border-color:var(--proj-soft);border-left:4px solid var(--proj)}
 
-/* 프로젝트 카드 */
-.pcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
-.pcard{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
-  border-radius:16px;padding:17px;text-decoration:none;color:inherit;box-shadow:var(--shadow)}
+/* 프로젝트 카드 — 동시 진행이 보통 2건이라 한 줄에 하나씩 크게 보여준다 */
+.pcards{display:grid;grid-template-columns:1fr;gap:16px}
+.pcard{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:0 28px;
+  background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 24px;
+  text-decoration:none;color:inherit;box-shadow:var(--shadow)}
 .pcard:hover{border-color:var(--proj)}
-.phead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
-.pphase{font-size:12px;color:var(--muted)}
-.pname{font-size:18px;font-weight:800;line-height:1.3;color:var(--ink)}
-.pcode{font-size:11.5px;color:var(--muted);font-weight:700;margin-left:6px;letter-spacing:.06em}
-.psum{font-size:13px;color:var(--ink2);margin-top:8px;line-height:1.55;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pnext{font-size:12.5px;color:var(--proj);margin-top:auto;padding-top:11px;font-weight:700;line-height:1.45}
-.pnext i{font-style:normal;font-weight:800;font-size:10.5px;letter-spacing:.08em;color:var(--muted);
-  margin-right:6px}
-.pcard .mchips{margin-top:10px}
+.pmain{min-width:0;display:flex;flex-direction:column}
+.pside{display:flex;flex-direction:column;justify-content:flex-end;min-width:0;
+  border-left:1px solid var(--line);padding-left:24px}
+.phead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.pphase{font-size:12.5px;color:var(--muted)}
+.pname{font-size:22px;font-weight:800;line-height:1.3;color:var(--ink);letter-spacing:-.01em}
+.pcode{font-size:12px;color:var(--muted);font-weight:700;margin-left:8px;letter-spacing:.06em}
+.ptag{font-size:14px;color:var(--proj);font-weight:700;margin-top:6px;line-height:1.5}
+.psum{font-size:13.5px;color:var(--ink2);margin-top:8px;line-height:1.6;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pside .prog{margin-top:0}
+.pnext{font-size:13px;color:var(--proj);margin-top:14px;font-weight:700;line-height:1.5}
+.pnext i,.ptarget i{font-style:normal;font-weight:800;font-size:10.5px;letter-spacing:.08em;
+  color:var(--muted);margin-right:6px}
+.ptarget{font-size:12.5px;color:var(--ink2);margin-top:8px;line-height:1.5}
+.pcard .mchips{margin-top:auto;padding-top:14px}
 .mchip.proj{background:var(--proj-soft);border-color:var(--proj-soft);color:var(--proj);font-weight:700}
 
 /* 과제 상태 배지 */
@@ -598,6 +605,10 @@ footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);font-si
 @media (max-width:720px){
   .grid2,.talk-grid,.talk-meta{grid-template-columns:1fr}
   .fun3{grid-template-columns:1fr}
+  .pcard{grid-template-columns:1fr;padding:18px}
+  .pside{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+  .pcard .mchips{padding-top:12px}
+  .pname{font-size:19px}
 }
 @media (max-width:430px){
   body{font-size:14.5px}
@@ -1099,25 +1110,33 @@ def project_card(entry: dict) -> str:
     status = text(data.get("status"))
     phase = text(data.get("phase"))
     summary = text(data.get("summary"))
+    tagline = text(data.get("tagline"))
+    target = text(data.get("target"))
     members = data.get("members") or []
     _, _, nxt = project_progress(data.get("milestones"))
 
-    chips = [f'<span class="mchip proj">{esc(b)}</span>' for b in str_list(data.get("badges"), 3)]
+    chips = [f'<span class="mchip proj">{esc(b)}</span>' for b in str_list(data.get("badges"), 4)]
     if members:
         chips.append(f'<span class="mchip">담당 {len(members)}명</span>')
 
-    return (f'<a class="pcard" href="{esc(entry["href"])}">'
+    # 왼쪽: 무엇인가 (상태·이름·한 줄 소개·요약·배지) / 오른쪽: 어디까지 왔나 (진행·다음·목표)
+    main = ('<div class="pmain">'
             f'<div class="phead">{status_badge(status)}'
             + (f'<span class="pphase">{esc(phase)}</span>' if phase else "")
             + '</div>'
             f'<div class="pname">{esc(title)}'
             + (f'<span class="pcode">{esc(codename)}</span>' if codename else "")
             + '</div>'
+            + (f'<div class="ptag">{esc(tagline)}</div>' if tagline else "")
             + (f'<div class="psum">{esc(summary)}</div>' if summary else "")
+            + (f'<div class="mchips">{"".join(chips)}</div>' if chips else "")
+            + '</div>')
+    side = ('<div class="pside">'
             + progress_html(data.get("milestones"), compact=True)
             + (f'<div class="pnext"><i>다음</i>{esc(nxt)}</div>' if nxt else "")
-            + (f'<div class="mchips">{"".join(chips)}</div>' if chips else "")
-            + '</a>')
+            + (f'<div class="ptarget"><i>목표</i>{esc(target)}</div>' if target else "")
+            + '</div>')
+    return f'<a class="pcard" href="{esc(entry["href"])}">{main}{side}</a>'
 
 
 def render_index(entries, skipped, part: str, built: str, generated: str, projects=()) -> str:
