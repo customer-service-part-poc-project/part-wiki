@@ -1,133 +1,151 @@
 {
   "sources": [
     "raw/threads/2026-08-24-슬랙-proj-평생보장소득.md",
-    "raw/threads/2026-09-10-텔레그램-파트방/messages.txt"
+    "raw/threads/2026-09-10-텔레그램-파트방/messages.txt",
+    "raw/threads/2026-09-14-슬랙-proj-평생보장소득-종료전.md",
+    "raw/threads/2026-09-15-텔레그램-파트방/messages.txt"
   ],
   "members": {
     "이강민": {
-      "utterances": 20,
-      "total_chars": 6159,
-      "avg_chars": 307,
-      "chat_chars": 1025,
-      "avg_chat_chars": 51,
+      "utterances": 47,
+      "total_chars": 7568,
+      "avg_chars": 161,
+      "chat_chars": 2193,
+      "avg_chat_chars": 46,
       "active_hours": "08~17",
       "markers": {
-        "웃음ㅋ": 3,
-        "웃음ㅎ": 5,
-        "물결": 4,
-        "느낌표": 6,
-        "물음표": 1,
-        "존댓말요": 24,
-        "습니다체": 3,
-        "겸양": 4,
-        "확인요구": 2,
-        "제안형": 6,
-        "단정": 1,
-        "위임분담": 1
+        "웃음ㅋ": 12,
+        "웃음ㅎ": 8,
+        "물결": 14,
+        "느낌표": 10,
+        "물음표": 2,
+        "말줄임": 2,
+        "존댓말요": 54,
+        "습니다체": 6,
+        "겸양": 12,
+        "확인요구": 3,
+        "제안형": 10,
+        "단정": 4,
+        "위임분담": 2
       },
       "endings_top": [
+        "드려요",
         "합니다",
         "습니다",
-        "었어요",
         "릴게요",
-        "하세요",
-        "드려요"
+        "주세요",
+        "같아요"
       ],
-      "artifacts": 3,
+      "artifacts": 10,
       "confidence": "높음"
     },
     "이정은": {
-      "utterances": 17,
-      "total_chars": 1443,
-      "avg_chars": 84,
-      "chat_chars": 1143,
-      "avg_chat_chars": 67,
+      "utterances": 26,
+      "total_chars": 1597,
+      "avg_chars": 61,
+      "chat_chars": 1275,
+      "avg_chat_chars": 49,
       "active_hours": "08~18",
       "markers": {
-        "웃음ㅋ": 1,
-        "물결": 6,
+        "웃음ㅋ": 2,
+        "물결": 10,
         "느낌표": 9,
         "물음표": 3,
-        "말줄임": 4,
-        "존댓말요": 16,
-        "습니다체": 5,
-        "겸양": 3,
+        "말줄임": 5,
+        "존댓말요": 18,
+        "습니다체": 6,
+        "겸양": 4,
         "확인요구": 1,
-        "제안형": 3
+        "제안형": 3,
+        "단정": 1
       },
       "endings_top": [
         "습니다",
         "주세요",
         "없어요",
         "는데요",
-        "민우님",
-        "겟네여"
+        "합니다",
+        "민우님"
       ],
-      "artifacts": 2,
+      "artifacts": 3,
       "confidence": "높음"
     },
     "한정은": {
-      "utterances": 1,
-      "total_chars": 105,
-      "avg_chars": 105,
-      "chat_chars": 105,
-      "avg_chat_chars": 105,
-      "active_hours": "16~16",
+      "utterances": 9,
+      "total_chars": 374,
+      "avg_chars": 41,
+      "chat_chars": 382,
+      "avg_chat_chars": 42,
+      "active_hours": "08~16",
       "markers": {
+        "웃음ㅋ": 3,
         "웃음ㅎ": 1,
-        "물음표": 1,
-        "존댓말요": 1
-      },
-      "endings_top": [
-        "용도"
-      ],
-      "artifacts": 0,
-      "confidence": "낮음"
-    },
-    "김동준": {
-      "utterances": 11,
-      "total_chars": 3270,
-      "avg_chars": 297,
-      "chat_chars": 1077,
-      "avg_chat_chars": 97,
-      "active_hours": "07~18",
-      "markers": {
-        "웃음ㅋ": 1,
-        "물결": 4,
+        "물결": 2,
         "느낌표": 1,
         "물음표": 3,
-        "존댓말요": 14,
-        "습니다체": 5,
+        "말줄임": 2,
+        "존댓말요": 4,
+        "겸양": 1
+      },
+      "endings_top": [
+        "용도",
+        "하세요",
+        "갛네요",
+        "신가요",
+        "먹죠"
+      ],
+      "artifacts": 0,
+      "confidence": "중간"
+    },
+    "김동준": {
+      "utterances": 31,
+      "total_chars": 4223,
+      "avg_chars": 136,
+      "chat_chars": 1935,
+      "avg_chat_chars": 62,
+      "active_hours": "07~18",
+      "markers": {
+        "웃음ㅋ": 9,
+        "웃음ㅎ": 2,
+        "물결": 9,
+        "느낌표": 5,
+        "물음표": 3,
+        "말줄임": 4,
+        "존댓말요": 32,
+        "습니다체": 13,
         "겸양": 1,
         "확인요구": 3,
-        "제안형": 2,
-        "단정": 1,
+        "제안형": 4,
+        "단정": 2,
         "위임분담": 1
       },
       "endings_top": [
-        "입니다",
         "습니다",
-        "립니다",
-        "같아요",
-        "보여요",
-        "할게요"
+        "입니다",
+        "있어요",
+        "되네요",
+        "주세요",
+        "같네요"
       ],
-      "artifacts": 8,
-      "confidence": "중간"
+      "artifacts": 12,
+      "confidence": "높음"
     },
     "한민우": {
-      "utterances": 9,
-      "total_chars": 1304,
-      "avg_chars": 144,
-      "chat_chars": 661,
-      "avg_chat_chars": 73,
-      "active_hours": "07~15",
+      "utterances": 16,
+      "total_chars": 1652,
+      "avg_chars": 103,
+      "chat_chars": 905,
+      "avg_chat_chars": 56,
+      "active_hours": "07~16",
       "markers": {
+        "웃음ㅋ": 3,
         "웃음ㅎ": 1,
-        "존댓말요": 6,
-        "습니다체": 6,
-        "겸양": 1,
-        "제안형": 3
+        "느낌표": 1,
+        "물음표": 1,
+        "존댓말요": 7,
+        "습니다체": 10,
+        "겸양": 3,
+        "제안형": 4
       },
       "endings_top": [
         "습니다",
@@ -137,29 +155,31 @@
         "입니다",
         "립니다"
       ],
-      "artifacts": 12,
-      "confidence": "중간"
+      "artifacts": 13,
+      "confidence": "높음"
     },
     "전승찬": {
-      "utterances": 6,
-      "total_chars": 1386,
-      "avg_chars": 231,
-      "chat_chars": 579,
-      "avg_chat_chars": 96,
-      "active_hours": "10~16",
+      "utterances": 11,
+      "total_chars": 1563,
+      "avg_chars": 142,
+      "chat_chars": 738,
+      "avg_chat_chars": 67,
+      "active_hours": "09~16",
       "markers": {
+        "웃음ㅋ": 1,
         "웃음ㅎ": 1,
         "물결": 1,
-        "느낌표": 2,
+        "느낌표": 3,
         "물음표": 2,
-        "말줄임": 2,
-        "존댓말요": 4,
-        "습니다체": 3,
-        "위임분담": 2
+        "말줄임": 3,
+        "존댓말요": 8,
+        "습니다체": 4,
+        "확인요구": 1,
+        "위임분담": 3
       },
       "endings_top": [
-        "볼까요",
         "습니다",
+        "볼까요",
         "유지",
         "경우는",
         "됩니다",
@@ -169,14 +189,16 @@
       "confidence": "중간"
     },
     "박정훈": {
-      "utterances": 2,
-      "total_chars": 239,
-      "avg_chars": 119,
-      "chat_chars": 115,
-      "avg_chat_chars": 57,
-      "active_hours": "09~15",
+      "utterances": 4,
+      "total_chars": 261,
+      "avg_chars": 65,
+      "chat_chars": 139,
+      "avg_chat_chars": 34,
+      "active_hours": "08~15",
       "markers": {
-        "습니다체": 3,
+        "물결": 2,
+        "느낌표": 2,
+        "습니다체": 5,
         "확인요구": 2,
         "제안형": 2
       },
@@ -197,6 +219,46 @@
       "markers": {},
       "endings_top": [],
       "artifacts": 0,
+      "confidence": "낮음"
+    },
+    "나선영": {
+      "utterances": 6,
+      "total_chars": 202,
+      "avg_chars": 33,
+      "chat_chars": 184,
+      "avg_chat_chars": 30,
+      "active_hours": "08~16",
+      "markers": {
+        "웃음ㅋ": 1,
+        "물결": 7,
+        "느낌표": 1,
+        "물음표": 3,
+        "말줄임": 1,
+        "존댓말요": 4,
+        "습니다체": 1,
+        "확인요구": 1
+      },
+      "endings_top": [
+        "강민님",
+        "보시죠",
+        "주세요",
+        "황총무",
+        "실라우",
+        "구두구"
+      ],
+      "artifacts": 0,
+      "confidence": "중간"
+    },
+    "이혜진": {
+      "utterances": 1,
+      "total_chars": 34,
+      "avg_chars": 34,
+      "chat_chars": 0,
+      "avg_chat_chars": 0,
+      "active_hours": "08~08",
+      "markers": {},
+      "endings_top": [],
+      "artifacts": 1,
       "confidence": "낮음"
     }
   }
