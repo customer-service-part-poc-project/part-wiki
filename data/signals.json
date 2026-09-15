@@ -3,6 +3,7 @@
     "raw/threads/2026-08-24-슬랙-proj-평생보장소득.md",
     "raw/threads/2026-09-10-텔레그램-파트방/messages.txt",
     "raw/threads/2026-09-14-슬랙-proj-평생보장소득-종료전.md",
+    "raw/threads/2026-09-15-텔레그램-고객서비스파트/messages.txt",
     "raw/threads/2026-09-15-텔레그램-파트방/messages.txt"
   ],
   "members": {
@@ -189,16 +190,16 @@
       "confidence": "중간"
     },
     "박정훈": {
-      "utterances": 4,
-      "total_chars": 261,
-      "avg_chars": 65,
-      "chat_chars": 139,
-      "avg_chat_chars": 34,
+      "utterances": 5,
+      "total_chars": 277,
+      "avg_chars": 55,
+      "chat_chars": 156,
+      "avg_chat_chars": 31,
       "active_hours": "08~15",
       "markers": {
-        "물결": 2,
+        "물결": 3,
         "느낌표": 2,
-        "습니다체": 5,
+        "습니다체": 6,
         "확인요구": 2,
         "제안형": 2
       },
@@ -207,7 +208,7 @@
         "입니다"
       ],
       "artifacts": 2,
-      "confidence": "낮음"
+      "confidence": "중간"
     },
     "김민지": {
       "utterances": 0,

@@ -259,12 +259,29 @@ def reexec_in_venv() -> None:
 
 
 def get_client(conf: dict):
+    """telethon.sync 로 받아야 한다.
+
+    `from telethon import TelegramClient` 로 받으면 메서드가 코루틴을 돌려주고,
+    await 하지 않은 채 속성을 읽다가 터진다. telethon.sync 를 거치면
+    이벤트 루프 밖에서 부를 때 알아서 실행해 결과를 준다.
+    """
     try:
-        from telethon import TelegramClient
+        from telethon.sync import TelegramClient
     except ImportError:
         sys.exit(VENV_HINT)
     CONF_DIR.mkdir(parents=True, exist_ok=True)
-    return TelegramClient(str(SESSION_PATH), int(conf["api_id"]), conf["api_hash"])
+    client = TelegramClient(str(SESSION_PATH), int(conf["api_id"]), conf["api_hash"])
+    harden_session()
+    return client
+
+
+def harden_session() -> None:
+    """세션 파일은 계정 접근 권한 그 자체다. 주인만 읽게 둔다."""
+    for path in CONF_DIR.glob("session*"):
+        try:
+            path.chmod(0o600)
+        except OSError:
+            pass
 
 
 def do_login() -> None:
@@ -286,7 +303,9 @@ def do_login() -> None:
     client = get_client(conf)
     with client:
         me = client.get_me()
-        print(f"\n로그인 완료: {me.first_name or ''} {me.last_name or ''} (@{me.username or '-'})")
+        name = " ".join(filter(None, [me.first_name, me.last_name])) or "(이름 없음)"
+        print(f"\n로그인 완료: {name} (@{me.username or '-'})")
+    harden_session()
     print("세션은 .telegram/session.session 에 저장됐다. 이 파일은 계정 접근 권한 그 자체다.")
 
 
