@@ -387,6 +387,8 @@ li{margin:0 0 6px}
   padding:3px 9px;color:var(--ink2)}
 .mchip b{font-weight:800;color:var(--fun)}
 .mchip.mbti{background:var(--fun-soft);border-color:var(--fun-soft);color:var(--fun);font-weight:800}
+.mchip.badge{border-style:dashed;border-color:var(--fun-soft);color:var(--fun)}
+.mchip.react{font-size:14px;padding:1px 10px;line-height:1.5}
 .lowbadge{display:flex;align-items:center;gap:6px;margin-top:12px;background:var(--warn-soft);
   color:var(--warn);border:1px solid var(--warn-line);border-radius:10px;padding:7px 10px;
   font-size:11.5px;font-weight:800;line-height:1.35}
@@ -700,6 +702,19 @@ def render_person(data: dict, built: str) -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 # 목록 페이지
 # ══════════════════════════════════════════════════════════════════════════════
+def badge_short(badge) -> str:
+    """말투 뱃지를 칩 한 칸에 들어갈 길이로. '단정 3.5배' / '물결 안 씀'."""
+    if not isinstance(badge, dict):
+        return ""
+    marker = text(badge.get("marker"))
+    if not marker:
+        return ""
+    if badge.get("kind") == "안씀":
+        return f"{marker} 안 씀"
+    ratio = badge.get("ratio")
+    return f"{marker} {ratio}배" if ratio else marker
+
+
 def member_card(entry: dict) -> str:
     data = entry["data"]
     name = text(data.get("name"))
@@ -718,6 +733,19 @@ def member_card(entry: dict) -> str:
         chips.append(f'<span class="mchip mbti">{esc(mbti)}</span>')
     if age:
         chips.append(f'<span class="mchip">{esc(age)}</span>')
+
+    # 말투 뱃지는 카드에 짧게만 — 긴 이름표는 별명과 겹쳐 보인다.
+    # 자세한 이름표와 근거는 개인 페이지에서 본다.
+    badge_chip = badge_short(sig.get("badge"))
+    if badge_chip:
+        label = text(g(fun, "speech_badge.value")) if fun else ""
+        chips.append(f'<span class="mchip badge" title="{esc(label)}">{esc(badge_chip)}</span>')
+
+    top = sig.get("reactions_top") or []
+    if isinstance(top, list) and top and isinstance(top[0], (list, tuple)) and top[0]:
+        chips.append(f'<span class="mchip react" title="가장 많이 받은 반응">'
+                     f'{esc(str(top[0][0]))}</span>')
+
     if not fun:
         chips.append('<span class="mchip">재미 코너 비공개</span>')
 

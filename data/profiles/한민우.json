@@ -43,7 +43,13 @@
         "🙏",
         1
       ]
-    ]
+    ],
+    "badge": {
+      "marker": "겸양",
+      "ratio": 2.0,
+      "count": 3,
+      "kind": "많이"
+    }
   },
   "profile": {
     "axes": {

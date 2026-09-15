@@ -36,7 +36,13 @@
         "👏",
         2
       ]
-    ]
+    ],
+    "badge": {
+      "marker": "확인요구",
+      "ratio": 3.7,
+      "count": 2,
+      "kind": "많이"
+    }
   },
   "profile": {
     "axes": {

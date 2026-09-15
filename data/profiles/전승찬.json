@@ -50,7 +50,13 @@
         "🤣",
         2
       ]
-    ]
+    ],
+    "badge": {
+      "marker": "위임분담",
+      "ratio": 6.3,
+      "count": 3,
+      "kind": "많이"
+    }
   },
   "profile": {
     "axes": {

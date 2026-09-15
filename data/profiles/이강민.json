@@ -53,7 +53,13 @@
         "🤣",
         3
       ]
-    ]
+    ],
+    "badge": {
+      "marker": "단정",
+      "ratio": 3.1,
+      "count": 4,
+      "kind": "많이"
+    }
   },
   "profile": {
     "axes": {

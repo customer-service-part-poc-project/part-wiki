@@ -252,5 +252,32 @@ class ValidateProfileTests(unittest.TestCase):
         self.assert_profile_valid(profile)
 
 
+class BadgeChipTests(unittest.TestCase):
+    """목록 카드에 들어가는 말투 뱃지 칩. 별명과 겹치지 않게 짧아야 한다."""
+
+    def setUp(self):
+        try:
+            import build_site  # type: ignore
+        except ImportError:
+            self.skipTest("build_site.py 가 아직 없습니다")
+        self.short = getattr(build_site, "badge_short", None)
+        if not callable(self.short):
+            self.skipTest("badge_short 가 아직 없습니다")
+
+    def test_배수_뱃지(self):
+        self.assertEqual(self.short({"marker": "단정", "ratio": 3.5, "kind": "많이"}), "단정 3.5배")
+
+    def test_안쓰는_것도_뱃지다(self):
+        self.assertEqual(self.short({"marker": "물결", "ratio": 0.0, "kind": "안씀"}), "물결 안 씀")
+
+    def test_값이_없으면_빈_문자열(self):
+        for bad in (None, {}, {"ratio": 3.5}, "단정", []):
+            self.assertEqual(self.short(bad), "")
+
+    def test_칩이_짧다(self):
+        """길면 카드에서 별명과 뒤엉킨다."""
+        self.assertLessEqual(len(self.short({"marker": "위임분담", "ratio": 6.3, "kind": "많이"})), 12)
+
+
 if __name__ == "__main__":
     unittest.main()
