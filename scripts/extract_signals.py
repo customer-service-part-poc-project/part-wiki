@@ -74,6 +74,17 @@ NOISE = re.compile(
 DOCLIKE = re.compile(r"^\s*([-*•]|\||#{1,6}|>|\d+\.|\[)")
 
 
+# 리액션 줄: 이모지 다음에 개수. 내보내기와 수집기가 같은 모양으로 쓴다.
+REACTION = re.compile(r"^([^\w\s]{1,4})(\d+)$")
+
+# 말투 뱃지를 만들 때 쓰지 않는 마커.
+# 존댓말·습니다체는 거의 전원이 쓰므로 뱃지로 뽑으면 아무 말도 안 하는 셈이 된다.
+BADGE_EXCLUDE = {"존댓말요"}
+# 이 아래로는 표본이 적어 배수가 튄다. 뱃지를 달지 않는다.
+BADGE_MIN_UTTERANCES = 3
+BADGE_MIN_RATIO = 1.4
+
+
 def is_noise(line: str) -> bool:
     return bool(NOISE.search(line))
 
@@ -137,9 +148,68 @@ def parse_telegram(text: str) -> tuple[dict, dict]:
     return utt, times
 
 
+def collect_reactions(text: str) -> dict[str, collections.Counter]:
+    """'누가 받은' 리액션인지 세어 돌려준다.
+
+    준 사람은 알 수 없다. 텔레그램 내보내기도 API도 개수만 준다.
+    그래서 '받은 반응'만 다룬다.
+    """
+    got: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+    speaker: str | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if TIME_ONLY.match(line):
+            speaker = None
+            continue
+        m = SPEAKER_LINE.match(line)
+        if m:
+            speaker = ALIASES.get(m.group(1), m.group(1))
+            continue
+        hit = REACTION.match(line)
+        if hit and speaker:
+            got[speaker][hit.group(1)] += int(hit.group(2))
+    return got
+
+
+def speech_badges(members: dict) -> None:
+    """파트 평균 대비 두드러진 말투를 멤버마다 하나씩 골라 넣는다.
+
+    절대 횟수가 아니라 '발화당 사용률'을 파트 평균과 견준다.
+    말 많은 사람이 전부 가져가는 걸 막기 위해서다.
+    결과는 members[name]["badge"] 에 들어간다. 이름표는 사람이 붙인다.
+    """
+    pool = {n: v for n, v in members.items()
+            if v["utterances"] >= BADGE_MIN_UTTERANCES}
+    if not pool:
+        return
+    labels = [k for k in MARKERS if k not in BADGE_EXCLUDE]
+    rate = {n: {k: v["markers"].get(k, 0) / v["utterances"] for k in labels}
+            for n, v in pool.items()}
+    avg = {k: sum(r[k] for r in rate.values()) / len(rate) for k in labels}
+
+    for name, v in pool.items():
+        best = None
+        for k in labels:
+            if not avg[k]:
+                continue
+            ratio = rate[name][k] / avg[k]
+            if ratio >= BADGE_MIN_RATIO and (best is None or ratio > best["ratio"]):
+                best = {"marker": k, "ratio": round(ratio, 1),
+                        "count": v["markers"].get(k, 0), "kind": "많이"}
+        # 아무도 안 쓰는 걸 혼자 안 쓰는 것도 특징이다
+        if best is None:
+            for k in labels:
+                if avg[k] > 0.2 and rate[name][k] == 0:
+                    best = {"marker": k, "ratio": 0.0, "count": 0, "kind": "안씀"}
+                    break
+        if best:
+            v["badge"] = best
+
+
 def collect() -> dict:
     utterances: dict[str, list[str]] = collections.defaultdict(list)
     times: dict[str, list[str]] = collections.defaultdict(list)
+    reactions: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
     sources: list[str] = []
 
     files = sorted(p for p in RAW_THREADS.rglob("*")
@@ -157,6 +227,8 @@ def collect() -> dict:
         if not u:
             continue
         sources.append(path.relative_to(ROOT).as_posix())
+        for name, counter in collect_reactions(text).items():
+            reactions[name].update(counter)
         for name, items in u.items():
             utterances[name].extend(items)
         for name, items in t.items():
@@ -203,8 +275,12 @@ def collect() -> dict:
             "markers": markers,
             "endings_top": endings_top,
             "artifacts": len(re.findall(r"\.md|\.html|\.mov|첨부|공유드|정리해", joined)),
+            # 받은 리액션 상위 3종. 총합은 담지 않는다 — 발화량에 비례해
+            # 사람 사이 비교가 되어 버린다 (docs/PRIVACY.md)
+            "reactions_top": [[e, c] for e, c in reactions.get(name, collections.Counter()).most_common(3)],
             "confidence": confidence,
         }
+    speech_badges(result)
     return {"sources": sources, "members": result}
 
 

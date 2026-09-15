@@ -91,7 +91,8 @@ def make_profile(**deep_overrides):
         "fun": {
             "mbti": {"value": "INTJ", "strength": "약함", "basis": "축별 근거 한 줄"},
             "age_band": {"value": "30대 중반", "strength": "약함", "basis": "ㅋㅋ 1건 · 존댓말 21건"},
-            "blood_type": {"value": "A형", "strength": "없음(무작위)", "basis": "데이터 신호 0. 억지 논리 한 줄"},
+            "speech_badge": {"value": "검증부터 말하는 사람", "strength": "관측",
+                             "basis": "확인 표현을 파트 평균의 3.7배로 쓴다 · 관측 5건"},
             "nickname": "한 줄 별명 (호의적으로)",
             "how_to_talk": {
                 "good": ["짧고 명확하게 요청"],
@@ -214,11 +215,16 @@ class ValidateProfileTests(unittest.TestCase):
         del profile["fun"]["mbti"]["strength"]
         self.assert_profile_invalid(profile)
 
-    def test_blood_type_strength_must_be_random_label(self):
+    def test_retired_fun_key_rejected(self):
+        """혈액형처럼 근거가 0이라 폐지한 항목이 되살아나면 빌드가 막는다."""
         profile = make_profile()
         profile["fun"] = copy.deepcopy(profile["fun"])
-        profile["fun"]["blood_type"]["strength"] = "약함"  # "없음(무작위)" 여야 한다
+        profile["fun"]["blood_type"] = {"value": "A형", "strength": "없음(무작위)",
+                                        "basis": "데이터 신호 0"}
         self.assert_profile_invalid(profile)
+
+    def test_fun_without_retired_keys_is_valid(self):
+        self.assertNotIn("blood_type", make_profile()["fun"])
 
     def test_internal_url_rejected(self):
         profile = make_profile()

@@ -39,7 +39,27 @@
         "같아요"
       ],
       "artifacts": 10,
-      "confidence": "높음"
+      "reactions_top": [
+        [
+          "👏",
+          5
+        ],
+        [
+          "🫡",
+          5
+        ],
+        [
+          "🤣",
+          3
+        ]
+      ],
+      "confidence": "높음",
+      "badge": {
+        "marker": "단정",
+        "ratio": 3.1,
+        "count": 4,
+        "kind": "많이"
+      }
     },
     "이정은": {
       "utterances": 26,
@@ -70,7 +90,27 @@
         "민우님"
       ],
       "artifacts": 3,
-      "confidence": "높음"
+      "reactions_top": [
+        [
+          "🎄",
+          2
+        ],
+        [
+          "👏",
+          1
+        ],
+        [
+          "😎",
+          1
+        ]
+      ],
+      "confidence": "높음",
+      "badge": {
+        "marker": "겸양",
+        "ratio": 1.7,
+        "count": 4,
+        "kind": "많이"
+      }
     },
     "한정은": {
       "utterances": 9,
@@ -97,7 +137,19 @@
         "먹죠"
       ],
       "artifacts": 0,
-      "confidence": "중간"
+      "reactions_top": [
+        [
+          "👍",
+          6
+        ]
+      ],
+      "confidence": "중간",
+      "badge": {
+        "marker": "물음표",
+        "ratio": 2.0,
+        "count": 3,
+        "kind": "많이"
+      }
     },
     "김동준": {
       "utterances": 32,
@@ -130,7 +182,27 @@
         "같네요"
       ],
       "artifacts": 12,
-      "confidence": "높음"
+      "reactions_top": [
+        [
+          "👍",
+          14
+        ],
+        [
+          "❤",
+          4
+        ],
+        [
+          "🎄",
+          2
+        ]
+      ],
+      "confidence": "높음",
+      "badge": {
+        "marker": "단정",
+        "ratio": 3.5,
+        "count": 3,
+        "kind": "많이"
+      }
     },
     "한민우": {
       "utterances": 16,
@@ -158,7 +230,23 @@
         "립니다"
       ],
       "artifacts": 13,
-      "confidence": "높음"
+      "reactions_top": [
+        [
+          "👍",
+          3
+        ],
+        [
+          "🙏",
+          1
+        ]
+      ],
+      "confidence": "높음",
+      "badge": {
+        "marker": "겸양",
+        "ratio": 2.0,
+        "count": 3,
+        "kind": "많이"
+      }
     },
     "전승찬": {
       "utterances": 11,
@@ -188,7 +276,27 @@
         "하네요"
       ],
       "artifacts": 1,
-      "confidence": "중간"
+      "reactions_top": [
+        [
+          "🎄",
+          4
+        ],
+        [
+          "👍",
+          4
+        ],
+        [
+          "🤣",
+          2
+        ]
+      ],
+      "confidence": "중간",
+      "badge": {
+        "marker": "위임분담",
+        "ratio": 6.3,
+        "count": 3,
+        "kind": "많이"
+      }
     },
     "박정훈": {
       "utterances": 5,
@@ -209,7 +317,23 @@
         "입니다"
       ],
       "artifacts": 2,
-      "confidence": "중간"
+      "reactions_top": [
+        [
+          "👍",
+          3
+        ],
+        [
+          "👏",
+          2
+        ]
+      ],
+      "confidence": "중간",
+      "badge": {
+        "marker": "확인요구",
+        "ratio": 3.7,
+        "count": 2,
+        "kind": "많이"
+      }
     },
     "김민지": {
       "utterances": 0,
@@ -221,6 +345,7 @@
       "markers": {},
       "endings_top": [],
       "artifacts": 0,
+      "reactions_top": [],
       "confidence": "낮음"
     },
     "나선영": {
@@ -249,7 +374,27 @@
         "구두구"
       ],
       "artifacts": 0,
-      "confidence": "중간"
+      "reactions_top": [
+        [
+          "👏",
+          4
+        ],
+        [
+          "🎄",
+          2
+        ],
+        [
+          "🫡",
+          1
+        ]
+      ],
+      "confidence": "중간",
+      "badge": {
+        "marker": "물결",
+        "ratio": 3.1,
+        "count": 7,
+        "kind": "많이"
+      }
     },
     "이혜진": {
       "utterances": 1,
@@ -261,6 +406,12 @@
       "markers": {},
       "endings_top": [],
       "artifacts": 1,
+      "reactions_top": [
+        [
+          "🦄",
+          3
+        ]
+      ],
       "confidence": "낮음"
     }
   }

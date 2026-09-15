@@ -4,7 +4,7 @@
 파트의 세컨드 브레인.
 
 > 📇 파트원 프로필 사이트: **https://customer-service-part-poc-project.github.io/part-wiki/**
-> MBTI·나이대·혈액형 추측과 멤버별 대화 가이드. (추측이며 혈액형은 근거가 전혀 없다)
+> MBTI·나이대 추측과 멤버별 대화 가이드. (업무 성향과 같은 근거로 쓰이지 않았다)
 
 사람은 **자료를 넣고 질문한다.** 위키를 직접 쓰는 일은 거의 없다.
 요약·정리·교차참조·페이지 갱신 같은 아무도 하기 싫은 일은 전부 LLM이 한다.
@@ -125,7 +125,7 @@ LLM이 고치는 걸 실시간으로 보면서 링크를 따라다닐 수 있다
 
 **▶ https://customer-service-part-poc-project.github.io/part-wiki/**
 
-파트원 프로필과 재미 코너(MBTI·나이대·혈액형·별명·대화 가이드)를 GitHub Pages 로 공개하는 정적 사이트.
+파트원 프로필과 재미 코너(MBTI·나이대·말투 뱃지·받은 반응·별명·대화 가이드)를 GitHub Pages 로 공개하는 정적 사이트.
 위키 본문(`wiki/`, `raw/`)은 빌드 대상이 아니다 — `data/profiles/*.json` 만 화이트리스트로 내보낸다.
 
 **파이프라인**
@@ -147,7 +147,9 @@ python3 scripts/build_site.py --out _site && open _site/index.html
 `raw/`·`data/`·`scripts/`·`docs/PROFILE_SCHEMA.md` 가 바뀌면 즉시도 배포된다.
 Actions 탭에서 `workflow_dispatch` 로 수동 실행도 가능하다.
 
-> ⚠️ **MBTI·나이대·혈액형은 추측이다.** 특히 혈액형은 데이터 근거가 전혀 없는 "무작위" 항목이다
+> ⚠️ **MBTI·나이대는 추측이다.** 업무 성향과 같은 근거로 쓰이지 않았다
+> (말투 뱃지와 받은 반응은 집계한 관측값이다)
+> (혈액형은 근거가 0이라 2026-09-15 에 뺐다)
 > (`docs/PROFILE_SCHEMA.md`). 재미로만 보고, 업무 판단의 근거로 쓰지 않는다.
 
 자세한 스키마와 공개 범위·금지 패턴은 [`docs/PROFILE_SCHEMA.md`](docs/PROFILE_SCHEMA.md),

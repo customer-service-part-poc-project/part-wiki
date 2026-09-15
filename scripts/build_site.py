@@ -32,7 +32,7 @@ DEFAULT_PART = "고객서비스파트"
 KST = datetime.timezone(datetime.timedelta(hours=9), "KST")
 
 # 사이트 어디에나 붙는 고정 문구. 추측을 사실처럼 읽지 않게 하는 장치다.
-BANNER = "MBTI·나이대·혈액형은 추측이다. 혈액형은 근거가 전혀 없다(무작위)."
+BANNER = "MBTI·나이대는 추측이다. 말투 뱃지와 받은 반응은 관측값이다."
 
 # ── 검증 규칙 (docs/PROFILE_SCHEMA.md · docs/PRIVACY.md) ──────────────────────
 # 중첩 어디에 있어도 거부하는 키. 원문 인용과 성별 추정을 막는다.
@@ -52,8 +52,10 @@ FORBIDDEN_PATTERNS = (
 # 파일 경로로 새어 나가면 곤란한 문자를 이름에서 막는다.
 UNSAFE_NAME = re.compile(r"[/\\:*?\"<>|\x00-\x1f]")
 
-FUN_KEYS = (("mbti", "MBTI"), ("age_band", "나이대"), ("blood_type", "혈액형"))
-BLOOD_STRENGTH = "없음(무작위)"
+FUN_KEYS = (("mbti", "MBTI"), ("age_band", "나이대"), ("speech_badge", "말투 뱃지"))
+
+# 근거가 0인 항목은 싣지 않는다. 혈액형은 그래서 2026-09-15 에 뺐다.
+RETIRED_FUN_KEYS = ("blood_type",)
 
 AXIS_ORDER = ["delegation", "verification", "planning", "thoroughness", "exploration"]
 AXIS_KO = {"delegation": "위임", "verification": "검증", "planning": "계획",
@@ -204,11 +206,9 @@ def validate(data, json_path: "Path | str"):
                     E(f"fun.{key}: {{\"value\":…, \"strength\":…, \"basis\":…}} 객체가 필요합니다")
                 elif not text(blk.get("strength")):
                     E(f"fun.{key}.strength: 근거 강도 표기가 없습니다 ({ko})")
-            blood = fun.get("blood_type")
-            if isinstance(blood, dict):
-                s = text(blood.get("strength"))
-                if s and re.sub(r"\s+", "", s) != BLOOD_STRENGTH:
-                    E(f"fun.blood_type.strength: {BLOOD_STRENGTH!r} 이어야 합니다 (현재 {s!r})")
+            for key in RETIRED_FUN_KEYS:
+                if key in fun:
+                    E(f"fun.{key}: 근거가 없어 폐지된 항목입니다. JSON 에서 지우세요")
 
     # 5) 금지 패턴 — JSON 전체를 문자열로 훑는다
     blob = json.dumps(data, ensure_ascii=False)
@@ -366,7 +366,7 @@ li{margin:0 0 6px}
 .talk-ex .q::after{content:"”"}
 
 /* 재미 코너 3종 */
-.fun3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.fun3{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}
 .funcard{background:var(--card);border:1px solid var(--fun-soft);border-radius:14px;padding:16px}
 .funk{font-size:11px;color:var(--muted);letter-spacing:.09em;font-weight:800}
 .funval{font-size:clamp(24px,5vw,30px);font-weight:800;margin:4px 0 9px;line-height:1.15;
@@ -667,9 +667,22 @@ def render_person(data: dict, built: str) -> str:
                 f'<div class="funval">{esc(text(blk.get("value")) or "-")}</div>'
                 f'{strength_badge(blk.get("strength"))}'
                 f'<div class="funbasis">{esc(text(blk.get("basis")) or "근거 메모 없음")}</div></div>')
+        top = g(data, "signals.reactions_top") or []
+        if isinstance(top, list) and top and isinstance(top[0], (list, tuple)) and top[0]:
+            emoji = esc(str(top[0][0]))
+            others = " ".join(esc(str(e)) for e, _ in top[1:3] if e)
+            fcards.append(
+                f'<div class="funcard"><div class="funk">받은 반응</div>'
+                f'<div class="funval" style="font-size:34px">{emoji}</div>'
+                f'{strength_badge("관측")}'
+                f'<div class="funbasis">이 사람 글에 가장 많이 달린 이모지다.'
+                + (f' 다음은 {others}.' if others else "")
+                + ' 개수는 발화량에 비례해서 적지 않는다.</div></div>')
+
         fun_body = ('<div class="funwrap">'
-                    '<p class="funhead">여기부터는 <b>추측</b>이다. 위 업무 성향과 같은 근거로 쓰이지 않았다. '
-                    '항목마다 근거 강도를 함께 본다 — <b>혈액형은 데이터 신호가 0이다.</b></p>'
+                    '<p class="funhead">MBTI·나이대는 <b>추측</b>이다. 위 업무 성향과 같은 근거로 쓰이지 않았다. '
+                    '말투 뱃지와 받은 반응은 <b>집계한 관측값</b>이다. '
+                    '항목마다 <b>근거 강도</b>를 함께 본다.</p>'
                     + talk_html(fun.get("how_to_talk"))
                     + f'<div class="fun3">{"".join(fcards)}</div></div>')
         s_fun = sec("sec-fun", "추측 · 재미용", "재미 코너", fun_body, "근거 강도를 항목마다 표시한다")
@@ -699,16 +712,12 @@ def member_card(entry: dict) -> str:
     nick = text(g(fun, "nickname")) if fun else ""
     mbti = text(g(fun, "mbti.value")) if fun else ""
     age = text(g(fun, "age_band.value")) if fun else ""
-    blood = text(g(fun, "blood_type.value")) if fun else ""
 
     chips = []
     if mbti:
         chips.append(f'<span class="mchip mbti">{esc(mbti)}</span>')
     if age:
         chips.append(f'<span class="mchip">{esc(age)}</span>')
-    if blood:
-        # 혈액형은 근거가 0이다. 목록에서도 '?' 로 티를 낸다.
-        chips.append(f'<span class="mchip" title="근거 없음(무작위)">{esc(blood)} <b>?</b></span>')
     if not fun:
         chips.append('<span class="mchip">재미 코너 비공개</span>')
 
