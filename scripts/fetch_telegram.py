@@ -564,6 +564,22 @@ def collect(conf: dict, chat: str, *, dry_run: bool, fetch_all: bool,
     return count
 
 
+def send_text(conf: dict, chat: str, path: pathlib.Path) -> None:
+    """파일 본문을 그 방에 한 메시지로 보낸다. 동기화 요약을 방에 되돌려 줄 때 쓴다."""
+    body = path.read_text(encoding="utf-8").strip()
+    if not body:
+        sys.exit(f"보낼 내용이 비어 있다: {path}")
+    if len(body) > 4096:
+        sys.exit(f"텔레그램 한 메시지 한도(4096자)를 넘는다: {len(body)}자")
+    with get_client(conf) as client:
+        ensure_authorized(client)
+        entity = resolve_chat(client, chat)
+        from telethon import utils
+        title = utils.get_display_name(entity)
+        client.send_message(entity, body, link_preview=False)
+        print(f"[{title}] {len(body)}자 보냄")
+
+
 def describe_service(msg) -> str:
     from telethon import utils
     who = utils.get_display_name(msg.sender) if msg.sender else "누군가"
@@ -625,6 +641,8 @@ def main() -> None:
     ap.add_argument("--dry-run", action="store_true", help="저장하지 않고 화면에만")
     ap.add_argument("--all", action="store_true", help="증분 무시하고 전체 이력")
     ap.add_argument("--limit", type=int, help="최대 메시지 수")
+    ap.add_argument("--send", metavar="파일",
+                    help="--chat 과 함께. 파일 본문을 그 방에 메시지로 보낸다 (동기화 요약 되돌려주기)")
     ap.add_argument("--since-id", type=int,
                     help="이 메시지 ID 이후만. 첫 수집에서 기존 내보내기와 겹치는 구간을 자를 때 쓴다")
     args = ap.parse_args()
@@ -644,6 +662,12 @@ def main() -> None:
     conf = need_config()
     if args.list:
         do_list(conf, args.limit or 50)
+        return
+
+    if args.send:
+        if not args.chat:
+            ap.error("--send 는 --chat 과 함께 쓴다.")
+        send_text(conf, args.chat, pathlib.Path(args.send))
         return
 
     targets = [args.chat] if args.chat else registered_chats(conf)
